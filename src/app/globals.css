@@ -86,3 +86,23 @@
     line-height: 1.4;
   }
 }
+
+/* หน้าพิมพ์กลาง: กระดาษ A4 */
+@page {
+  size: A4;
+  margin: 20mm 18mm;
+}
+@media print {
+  html {
+    font-size: 16px;
+  }
+  body {
+    background: #ffffff;
+  }
+  .print-sheet table {
+    break-inside: auto;
+  }
+  .print-sheet tr {
+    break-inside: avoid;
+  }
+}

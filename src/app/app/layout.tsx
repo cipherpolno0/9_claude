@@ -22,7 +22,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   return (
     <div className="flex min-h-screen flex-1">
       {/* แถบข้างจอใหญ่ */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r bg-muted lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r bg-muted lg:flex print:hidden">
         <WorkspaceBrand />
         <div className="flex-1 overflow-y-auto">
           <WorkspaceNav access={access} />
@@ -31,7 +31,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       <div className="flex min-w-0 flex-1 flex-col">
         <WorkspaceTopbar access={access} userName={userName} />
         {ctx.passwordWarn ? (
-          <p role="status" className="border-b border-input bg-accent px-4 py-2 font-medium text-accent-foreground">
+          <p role="status" className="border-b border-input bg-accent px-4 py-2 font-medium text-accent-foreground print:hidden">
             รหัสผ่านของท่านจะครบอายุในอีก {ctx.passwordDaysLeft} วัน{" "}
             <Link href="/account/password" className="underline underline-offset-4">
               เปลี่ยนรหัสผ่านตอนนี้

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 
 import { ErrorText } from "@/components/form";
+import { PendingRequestsBox } from "@/components/pending-requests-box";
 import { requireWorkspace } from "@/lib/auth/guards";
 import { fullName } from "@/lib/auth/session";
 import { LEVEL_LABEL, SECT_LABEL, type OrgLevel, type Sect } from "@/lib/org-units";
+import { fetchMyPendingRequests } from "@/lib/requests/queries";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "แดชบอร์ด" };
@@ -31,7 +33,7 @@ export default async function DashboardPage({
   const { denied } = await searchParams;
   const supabase = await createClient();
 
-  const { data } = await supabase.rpc("my_org_units");
+  const [{ data }, pendingRequests] = await Promise.all([supabase.rpc("my_org_units"), fetchMyPendingRequests()]);
   const myUnits = (data as MyUnit[] | null) ?? [];
   const seesAll = myUnits.some((u) => u.all_units);
 
@@ -68,6 +70,10 @@ export default async function DashboardPage({
           <ErrorText>ท่านไม่มีสิทธิ์เข้าหน้าที่เรียก ระบบจึงพากลับมาที่แดชบอร์ด</ErrorText>
         </div>
       ) : null}
+
+      <div className="mt-6">
+        <PendingRequestsBox items={pendingRequests} />
+      </div>
 
       <div className="mt-6 rounded-xl border bg-card p-5" data-testid="my-units">
         <h2 className="text-xl font-bold text-primary">เขตที่ท่านดูแล</h2>
@@ -127,7 +133,7 @@ export default async function DashboardPage({
 
       <div className="mt-6 rounded-xl border-2 border-dashed border-input bg-secondary px-6 py-8 text-center">
         <p className="text-lg font-semibold text-primary">ส่วนอื่นของแดชบอร์ดอยู่ระหว่างพัฒนา</p>
-        <p className="text-muted-foreground">งานรอพิจารณา แจ้งเตือน และทางลัดตามบทบาท จะเปิดใช้งานในบทเรียนถัดไป</p>
+        <p className="text-muted-foreground">ทางลัดตามบทบาทและสรุปงานของแต่ละระบบ จะเปิดใช้งานในบทเรียนถัดไป</p>
       </div>
     </section>
   );

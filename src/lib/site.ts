@@ -8,6 +8,8 @@ import {
   MapPinned,
   Network,
   Settings,
+  FlaskConical,
+  History,
   ShieldCheck,
   SlidersHorizontal,
   UserCog,
@@ -194,6 +196,20 @@ export const adminMenu: AdminMenuItem[] = [
     description: "บทบาทที่บังคับยืนยันตัวตน 2 ขั้น อายุรหัสผ่าน และเกณฑ์ระงับบัญชี",
     icon: SlidersHorizontal,
     adminOnly: true,
+  },
+  {
+    title: "ประวัติการแก้ไข",
+    href: "/app/admin/audit",
+    description: "ใคร ทำอะไร กับข้อมูลใด เมื่อใด ค้นและกรองได้",
+    icon: History,
+    adminOnly: true,
+  },
+  {
+    title: "สาธิตชิ้นส่วนกลาง",
+    href: "/app/admin/demo",
+    description: "ตารางข้อมูล ตัวเลือกเขตปกครอง ไฟล์แนบ แจ้งเตือน เครื่องอนุมัติกลาง หน้าพิมพ์",
+    icon: FlaskConical,
+    adminOnly: false,
   },
 ];
 

@@ -45,5 +45,10 @@
 - บทบาท (roles.key): chief, deputy_chief, secretary, central_staff, admin, education_staff, school_officer, finance_officer, supplies_officer, saraban_officer, quiz_manager, learner เมนูต่อบทบาทอยู่ที่ ROLE_MENUS ใน src/lib/auth/config.ts
 - ฟอร์มใช้ชิ้นส่วนจาก src/components/form.tsx (useServerForm, Field, SubmitButton) ข้อความผิดพลาดแปลงด้วย explainError จาก src/lib/errors.ts ตัวเลือกเขตปกครองใช้ src/components/org-unit-picker.tsx
 - เมื่อมีตัวเชื่อมต่อ Supabase ในการสนทนา ให้รัน migration ด้วย apply_migration แล้วตรวจ get_advisors (security) ทุกครั้ง และเก็บไฟล์ SQL เดียวกันไว้ใน supabase/migrations/
+- ชิ้นส่วนกลาง (เพิ่มในบทที่ 4) ต้องใช้ซ้ำ ห้ามสร้างใหม่: ตาราง = DataTable (src/components/data-table.tsx) คู่กับ parseTableParams และ xlsxResponse (src/lib/data-table.ts); เขตปกครอง = OrgUnitPicker คู่กับ fetchAccessibleUnits(); ไฟล์แนบ = <Attachments entityTable entityId orgUnitId />; แจ้งเตือน = ฟังก์ชันฐานข้อมูล notify_user() (เรียกจากฟังก์ชัน security definer เท่านั้น); ประวัติ = <RecordHistory table rowId />; หน้าพิมพ์ = PrintPage กับ <D> และ useDigits(); วันที่ = thaiDate, thaiDateTime (src/lib/thai.ts)
+- คำขอทุกชนิดของทุกระบบใช้เครื่องอนุมัติกลาง: เพิ่มแถวใน request_types (key, code, name, route_levels, start_at_own_unit, decider_roles, central_roles) แล้วเรียก submitRequest / decideRequest / resubmitRequest / cancelRequest จาก src/lib/requests/actions.ts ข้อมูลเฉพาะของคำขอเก็บใน requests.payload หน้ารายละเอียดกลางคือ /app/approvals/[id] เส้นเวลาใช้ RequestTimeline (แบบสาธารณะใช้ข้อมูลจาก public_request_status ซึ่งไม่มีชื่อบุคคลและความเห็น)
+- เลขที่คำขอ: [code]-[ปี พ.ศ.]-[ลำดับ 4 หลัก] ออกโดย submit_request เท่านั้น
+- ชื่อบุคคลที่เกี่ยวกับคำขอให้อ่านผ่าน request_people(request_id) ห้ามเปิด RLS ของ profiles เพิ่ม (กันอีเมลและเบอร์ติดต่อรั่ว)
+- ตาราง audit_logs อ่านได้เฉพาะผู้ดูแลระบบ ตารางใหม่ทุกตารางที่เก็บข้อมูลงานต้องผูก trigger audit_row_change()
 
 @AGENTS.md

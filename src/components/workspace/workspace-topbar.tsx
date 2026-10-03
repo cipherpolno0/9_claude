@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, CircleUserRound, LogOut, Menu, Search } from "lucide-react";
+import { CircleUserRound, LogOut, Menu, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +15,12 @@ import {
 } from "@/components/ui/sheet";
 import { logout } from "@/lib/auth/actions";
 
+import { NotificationBell } from "./notification-bell";
 import { WorkspaceBrand, WorkspaceNav, type NavAccess } from "./workspace-nav";
 
 export function WorkspaceTopbar({ access, userName }: { access: NavAccess; userName: string }) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-background px-3 sm:gap-3 sm:px-4">
+    <header className="sticky top-0 z-30 flex h-16 print:hidden items-center gap-2 border-b bg-background px-3 sm:gap-3 sm:px-4">
       {/* เมนูมือถือ */}
       <Sheet>
         <SheetTrigger asChild>
@@ -54,10 +55,7 @@ export function WorkspaceTopbar({ access, userName }: { access: NavAccess; userN
       </form>
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">
-        <Button variant="ghost" size="icon" type="button">
-          <Bell aria-hidden />
-          <span className="sr-only">การแจ้งเตือน</span>
-        </Button>
+        <NotificationBell />
         <Link
           href="/account"
           className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent"
