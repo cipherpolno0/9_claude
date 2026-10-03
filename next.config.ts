@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    serverActions: {
+      // รองรับการอัปโหลดไฟล์ Excel ผ่านฟอร์ม
+      bodySizeLimit: "5mb",
+    },
+  },
 };
 
 export default nextConfig;

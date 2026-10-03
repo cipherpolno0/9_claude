@@ -6,6 +6,8 @@ import {
   LayoutDashboard,
   Mail,
   MapPinned,
+  Network,
+  Settings,
   Users,
   Wallet,
   type LucideIcon,
@@ -147,6 +149,23 @@ export const workspaceMenu: MenuGroup[] = [
         icon: Archive,
       },
     ],
+  },
+];
+
+/** เมนูผู้ดูแลระบบ (/app/admin) แสดงเฉพาะผู้ดูแล — การซ่อนตามสิทธิ์ทำในบทที่ 3 */
+export const adminRoot: MenuItem = {
+  title: "ผู้ดูแลระบบ",
+  href: "/app/admin",
+  description: "ตั้งค่าข้อมูลกลางของทั้งเว็บ",
+  icon: Settings,
+};
+
+export const adminMenu: MenuItem[] = [
+  {
+    title: "เขตปกครอง",
+    href: "/app/admin/org-units",
+    description: "ต้นไม้ ส่วนกลาง ภาค จังหวัด อำเภอ ตำบล แยกนิกาย และนำเข้าจาก Excel",
+    icon: Network,
   },
 ];
 

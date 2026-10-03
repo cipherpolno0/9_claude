@@ -36,5 +36,9 @@
 - โครงการใช้ Next.js 16 ซึ่งต่างจากรุ่นก่อน ให้อ่านกติกาใน AGENTS.md ก่อนเขียนโค้ดทุกครั้ง
 - ฟอนต์ Sarabun ติดตั้งผ่านแพ็กเกจ @fontsource/sarabun (เก็บไฟล์ฟอนต์ไว้ในโครงการ ไม่ดึงจากภายนอก)
 - รายการเมนูทั้งหมดอยู่ที่ src/lib/site.ts ที่เดียว โทนสีอยู่ที่ src/app/globals.css ที่เดียว
+- ฐานข้อมูล (เพิ่มในบทที่ 2): migration อยู่ที่ supabase/migrations/ ตั้งชื่อ YYYYMMDDHHMMSS_ชื่อ.sql ผู้สั่งงานรันเองใน SQL Editor ของ Supabase ตามลำดับ ห้ามแก้ไฟล์ที่รันไปแล้ว ให้เพิ่มไฟล์ใหม่
+- ตารางใหม่ทุกตารางให้ผูก trigger audit_row_change() และ set_updated_at() ที่มีอยู่แล้ว
+- org_units: ระดับ central > region > province > district > subdistrict, sect = mahanikaya / dhammayut (ส่วนกลางไม่มีนิกาย) ใช้ฟังก์ชัน descendants_of(id) หาหน่วยใต้สังกัด
+- หน้า /app/admin ใช้ secret key ฝั่งเซิร์ฟเวอร์ชั่วคราว (src/lib/supabase/admin.ts) ต้องเปลี่ยนเป็นสิทธิ์ตามบทบาทในบทที่ 3
 
 @AGENTS.md

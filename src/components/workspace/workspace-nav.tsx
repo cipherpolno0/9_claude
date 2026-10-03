@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { site, workspaceMenu } from "@/lib/site";
+import { adminRoot, site, workspaceMenu, type MenuGroup } from "@/lib/site";
+
+// เมนูผู้ดูแลระบบต่อท้ายเมนูหลัก 9 เมนู (บทที่ 3 จะแสดงเฉพาะผู้ดูแล)
+const groups: MenuGroup[] = [...workspaceMenu, { label: "ระบบ", items: [adminRoot] }];
 import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string) {
@@ -21,7 +24,7 @@ export function WorkspaceNav({
 
   return (
     <nav aria-label="เมนูพื้นที่ทำงาน" className="flex flex-col gap-4 p-3">
-      {workspaceMenu.map((group, index) => (
+      {groups.map((group, index) => (
         <div key={group.label ?? index}>
           {group.label ? (
             <p className="px-3 pb-1 text-sm font-semibold text-muted-foreground">
