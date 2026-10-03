@@ -50,5 +50,6 @@
 - เลขที่คำขอ: [code]-[ปี พ.ศ.]-[ลำดับ 4 หลัก] ออกโดย submit_request เท่านั้น
 - ชื่อบุคคลที่เกี่ยวกับคำขอให้อ่านผ่าน request_people(request_id) ห้ามเปิด RLS ของ profiles เพิ่ม (กันอีเมลและเบอร์ติดต่อรั่ว)
 - ตาราง audit_logs อ่านได้เฉพาะผู้ดูแลระบบ ตารางใหม่ทุกตารางที่เก็บข้อมูลงานต้องผูก trigger audit_row_change()
+- เครื่องของผู้สั่งงานใช้พอร์ต 3001 (กำหนดใน package.json: npm run dev) ที่อยู่ทดสอบคือ http://localhost:3001 และต้องตรงกับ URL Configuration ใน Supabase
 
 @AGENTS.md
