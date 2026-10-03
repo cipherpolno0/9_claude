@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 
 import { UnderConstruction } from "@/components/under-construction";
+import { requireMenu } from "@/lib/auth/guards";
 import { findWorkspaceMenu } from "@/lib/site";
 
 const menu = findWorkspaceMenu("/app/budget");
 
 export const metadata: Metadata = { title: menu.title };
 
-export default function BudgetPage() {
+export default async function BudgetPage() {
+  await requireMenu(menu.href);
   return <UnderConstruction title={menu.title} description={menu.description} />;
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { requireAdmin } from "@/lib/auth/guards";
 import { buildTree, type OrgUnit } from "@/lib/org-units";
 import { getSupabaseEnv } from "@/lib/supabase/admin";
 
@@ -19,6 +20,7 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 }
 
 export default async function OrgUnitsPage() {
+  await requireAdmin();
   const env = getSupabaseEnv();
   let units: OrgUnit[] = [];
   let loadError: string | null = null;

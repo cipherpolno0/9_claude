@@ -14,21 +14,13 @@ import {
   type OrgUnit,
   type Sect,
 } from "@/lib/org-units";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { explainError as explain, type ActionResult } from "@/lib/errors";
+import { createClient } from "@/lib/supabase/server";
 
 const PAGE = "/app/admin/org-units";
 const COLUMNS = "id, parent_id, level, sect, name, code, is_active";
 
-export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
-
-/** แปลงข้อผิดพลาดจากฐานข้อมูลเป็นข้อความภาษาไทยที่อ่านเข้าใจ */
-function explain(error: { code?: string; message?: string } | null | unknown): string {
-  const e = (error ?? {}) as { code?: string; message?: string };
-  if (e.code === "23505") return "รหัสหน่วยนี้มีอยู่ในระบบแล้ว กรุณาใช้รหัสอื่น";
-  if (e.code === "23514" || e.code === "23503") return e.message ?? "ข้อมูลไม่ผ่านกติกาของระบบ";
-  if (e.message?.includes("fetch failed")) return "เชื่อมต่อฐานข้อมูลไม่ได้ กรุณาตรวจค่าในไฟล์ .env.local";
-  return e.message ? `เกิดข้อผิดพลาด: ${e.message}` : "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ";
-}
+export type { ActionResult };
 
 async function run(fn: () => Promise<ActionResult>): Promise<ActionResult> {
   try {
@@ -39,7 +31,7 @@ async function run(fn: () => Promise<ActionResult>): Promise<ActionResult> {
 }
 
 export async function fetchOrgUnits(): Promise<OrgUnit[]> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const all: OrgUnit[] = [];
   // อ่านทีละ 1,000 แถว เพราะ Supabase จำกัดจำนวนแถวต่อครั้ง
   for (let from = 0; ; from += 1000) {
@@ -67,7 +59,7 @@ export async function createOrgUnit(input: {
     if (!name) return { ok: false, error: "กรุณากรอกชื่อหน่วย" };
     if (!code) return { ok: false, error: "กรุณากรอกรหัสหน่วย" };
 
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     let row: { parent_id: string | null; level: string; sect: Sect | null; name: string; code: string };
 
     if (input.parentId === null) {
@@ -104,7 +96,7 @@ export async function updateOrgUnit(input: {
     if (!name) return { ok: false, error: "กรุณากรอกชื่อหน่วย" };
     if (!code) return { ok: false, error: "กรุณากรอกรหัสหน่วย" };
 
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     const { error } = await supabase.from("org_units").update({ name, code }).eq("id", input.id);
     if (error) return { ok: false, error: explain(error) };
     revalidatePath(PAGE);
@@ -115,7 +107,7 @@ export async function updateOrgUnit(input: {
 /** ปิดหรือเปิดใช้งาน (ไม่ลบข้อมูลจริง) */
 export async function setOrgUnitActive(id: string, isActive: boolean): Promise<ActionResult> {
   return run(async () => {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     const { error } = await supabase.from("org_units").update({ is_active: isActive }).eq("id", id);
     if (error) return { ok: false, error: explain(error) };
     revalidatePath(PAGE);
@@ -229,7 +221,7 @@ export async function confirmImport(raw: ImportRawRow[]): Promise<ActionResult> 
         parent_code: r.parentCode,
       }));
 
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     const { data, error } = await supabase.rpc("import_org_units", { p_rows: payload });
     if (error) return { ok: false, error: explain(error) };
     revalidatePath(PAGE);

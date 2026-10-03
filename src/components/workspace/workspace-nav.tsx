@@ -5,8 +5,24 @@ import { usePathname } from "next/navigation";
 
 import { adminRoot, site, workspaceMenu, type MenuGroup } from "@/lib/site";
 
-// เมนูผู้ดูแลระบบต่อท้ายเมนูหลัก 9 เมนู (บทที่ 3 จะแสดงเฉพาะผู้ดูแล)
-const groups: MenuGroup[] = [...workspaceMenu, { label: "ระบบ", items: [adminRoot] }];
+export type NavAccess = {
+  /** null = เห็นทุกเมนู */
+  allowed: string[] | null;
+  /** เห็นเมนูผู้ดูแลระบบหรือไม่ */
+  showAdmin: boolean;
+};
+
+/** เมนูที่ผู้ใช้คนนี้เห็น: กรองตามบทบาท และต่อเมนูผู้ดูแลระบบท้ายสุดถ้ามีสิทธิ์ */
+function visibleGroups(access: NavAccess): MenuGroup[] {
+  const groups = workspaceMenu
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((i) => access.allowed === null || access.allowed.includes(i.href)),
+    }))
+    .filter((g) => g.items.length > 0);
+  if (access.showAdmin) groups.push({ label: "ระบบ", items: [adminRoot] });
+  return groups;
+}
 import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string) {
@@ -15,12 +31,15 @@ function isActive(pathname: string, href: string) {
 
 /** รายการเมนูพื้นที่ทำงาน ใช้ทั้งแถบข้างจอใหญ่และเมนูเลื่อนบนมือถือ */
 export function WorkspaceNav({
+  access,
   wrapLink,
 }: {
+  access: NavAccess;
   /** ใช้ห่อลิงก์ เช่น ให้ปิดเมนูเลื่อนเมื่อกดบนมือถือ */
   wrapLink?: (link: React.ReactElement, key: string) => React.ReactNode;
 }) {
   const pathname = usePathname();
+  const groups = visibleGroups(access);
 
   return (
     <nav aria-label="เมนูพื้นที่ทำงาน" className="flex flex-col gap-4 p-3">

@@ -39,6 +39,11 @@
 - ฐานข้อมูล (เพิ่มในบทที่ 2): migration อยู่ที่ supabase/migrations/ ตั้งชื่อ YYYYMMDDHHMMSS_ชื่อ.sql ผู้สั่งงานรันเองใน SQL Editor ของ Supabase ตามลำดับ ห้ามแก้ไฟล์ที่รันไปแล้ว ให้เพิ่มไฟล์ใหม่
 - ตารางใหม่ทุกตารางให้ผูก trigger audit_row_change() และ set_updated_at() ที่มีอยู่แล้ว
 - org_units: ระดับ central > region > province > district > subdistrict, sect = mahanikaya / dhammayut (ส่วนกลางไม่มีนิกาย) ใช้ฟังก์ชัน descendants_of(id) หาหน่วยใต้สังกัด
-- หน้า /app/admin ใช้ secret key ฝั่งเซิร์ฟเวอร์ชั่วคราว (src/lib/supabase/admin.ts) ต้องเปลี่ยนเป็นสิทธิ์ตามบทบาทในบทที่ 3
+- สิทธิ์ (เพิ่มในบทที่ 3): ทุกหน้าใน /app ต้องเรียกด่านตรวจจาก src/lib/auth/guards.ts เป็นบรรทัดแรก (requireMenu, requireAdmin, requireAccountManager หรือ requireWorkspace) เพราะ layout ไม่ถูกเรียกซ้ำเมื่อเปลี่ยนหน้า
+- อ่านเขียนข้อมูลด้วย createClient() จาก src/lib/supabase/server.ts (ทำงานในนามผู้ใช้ อยู่ใต้ RLS) ห้ามใช้ createAdminClient() (secret key) ยกเว้นงานที่ทำในนามผู้ใช้ไม่ได้ และต้องเขียนเหตุผลกำกับ
+- RLS ของตารางใหม่ให้ใช้ฟังก์ชัน can_access(org_unit_id) และ has_role('ชื่อบทบาท') การเขียนที่มีกติกาซับซ้อนให้ทำเป็นฟังก์ชันฐานข้อมูลแบบ security definer ที่ตรวจสิทธิ์ภายใน และ revoke execute จาก public, anon
+- บทบาท (roles.key): chief, deputy_chief, secretary, central_staff, admin, education_staff, school_officer, finance_officer, supplies_officer, saraban_officer, quiz_manager, learner เมนูต่อบทบาทอยู่ที่ ROLE_MENUS ใน src/lib/auth/config.ts
+- ฟอร์มใช้ชิ้นส่วนจาก src/components/form.tsx (useServerForm, Field, SubmitButton) ข้อความผิดพลาดแปลงด้วย explainError จาก src/lib/errors.ts ตัวเลือกเขตปกครองใช้ src/components/org-unit-picker.tsx
+- เมื่อมีตัวเชื่อมต่อ Supabase ในการสนทนา ให้รัน migration ด้วย apply_migration แล้วตรวจ get_advisors (security) ทุกครั้ง และเก็บไฟล์ SQL เดียวกันไว้ใน supabase/migrations/
 
 @AGENTS.md

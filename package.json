@@ -6,10 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:test-users": "node --env-file=.env.local scripts/seed-test-users.mjs"
   },
   "dependencies": {
     "@fontsource/sarabun": "^5.3.0",
+    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

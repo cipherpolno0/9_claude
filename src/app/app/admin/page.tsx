@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { requireAccountManager } from "@/lib/auth/guards";
 import { adminMenu } from "@/lib/site";
 
 export const metadata: Metadata = { title: "ผู้ดูแลระบบ" };
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  const ctx = await requireAccountManager();
+  const items = adminMenu.filter((item) => ctx.isAdmin || !item.adminOnly);
+
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">
       <h1 className="text-2xl font-bold text-primary sm:text-3xl">ผู้ดูแลระบบ</h1>
-      <p className="mt-1 text-muted-foreground">ตั้งค่าข้อมูลกลางของทั้งเว็บ</p>
+      <p className="mt-1 text-muted-foreground">บัญชีผู้ใช้ สิทธิ์ และข้อมูลกลางของทั้งเว็บ</p>
       <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-        {adminMenu.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           return (
             <li key={item.href}>

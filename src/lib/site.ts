@@ -8,6 +8,9 @@ import {
   MapPinned,
   Network,
   Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserCog,
   Users,
   Wallet,
   type LucideIcon,
@@ -152,20 +155,45 @@ export const workspaceMenu: MenuGroup[] = [
   },
 ];
 
-/** เมนูผู้ดูแลระบบ (/app/admin) แสดงเฉพาะผู้ดูแล — การซ่อนตามสิทธิ์ทำในบทที่ 3 */
+/** เมนูผู้ดูแลระบบ (/app/admin) แสดงเฉพาะผู้ดูแลระบบและผู้อนุมัติบัญชี */
 export const adminRoot: MenuItem = {
   title: "ผู้ดูแลระบบ",
   href: "/app/admin",
-  description: "ตั้งค่าข้อมูลกลางของทั้งเว็บ",
+  description: "บัญชีผู้ใช้ สิทธิ์ และข้อมูลกลางของทั้งเว็บ",
   icon: Settings,
 };
 
-export const adminMenu: MenuItem[] = [
+export type AdminMenuItem = MenuItem & { adminOnly: boolean };
+
+/** adminOnly = เฉพาะผู้ดูแลระบบ / ไม่ใช่ = ผู้อนุมัติบัญชี (เจ้าคณะ รองเจ้าคณะ เลขานุการ ส่วนกลาง) เห็นด้วย */
+export const adminMenu: AdminMenuItem[] = [
+  {
+    title: "บัญชีผู้ใช้",
+    href: "/app/admin/users",
+    description: "พิจารณาคำขอบัญชี กำหนดบทบาท ระงับและเปิดใช้บัญชี",
+    icon: UserCog,
+    adminOnly: false,
+  },
+  {
+    title: "ทบทวนสิทธิ์ประจำปี",
+    href: "/app/admin/access-review",
+    description: "ยืนยันรายชื่อบัญชีในหน่วยปีละครั้ง (คงไว้ / ระงับ)",
+    icon: ShieldCheck,
+    adminOnly: false,
+  },
   {
     title: "เขตปกครอง",
     href: "/app/admin/org-units",
     description: "ต้นไม้ ส่วนกลาง ภาค จังหวัด อำเภอ ตำบล แยกนิกาย และนำเข้าจาก Excel",
     icon: Network,
+    adminOnly: true,
+  },
+  {
+    title: "บทบาทและค่าตั้ง",
+    href: "/app/admin/settings",
+    description: "บทบาทที่บังคับยืนยันตัวตน 2 ขั้น อายุรหัสผ่าน และเกณฑ์ระงับบัญชี",
+    icon: SlidersHorizontal,
+    adminOnly: true,
   },
 ];
 
