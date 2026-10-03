@@ -11,15 +11,20 @@
 4. พิมพ์ `npm run dev`
 5. เปิดเบราว์เซอร์ไปที่ http://localhost:3000
 
-## เชื่อมฐานข้อมูล Supabase (ทำครั้งเดียว)
+## เชื่อมฐานข้อมูล Supabase
 
-1. เข้า https://supabase.com สร้างโครงการใหม่ 1 โครงการ (Region: Southeast Asia - Singapore)
-2. เปิดเมนู SQL Editor แล้วรันไฟล์ในโฟลเดอร์ `supabase/migrations/` ทีละไฟล์ตามลำดับเลขหน้าชื่อไฟล์
-   (เปิดไฟล์ คัดลอกทั้งหมด วางใน SQL Editor กด Run ต้องขึ้น Success ก่อนทำไฟล์ถัดไป)
-3. ถ้าต้องการข้อมูลทดสอบ ให้รันไฟล์ `supabase/seed_test_data.sql` ต่อ (ไม่ใช่ข้อมูลจริง)
-4. คัดลอกไฟล์ `.env.example` เป็นชื่อ `.env.local` แล้วเติม 3 ค่าจากหน้า Project Settings ของ Supabase
-   - ห้ามส่งค่า `SUPABASE_SECRET_KEY` ให้ผู้อื่น และห้ามนำไฟล์ `.env.local` ขึ้น GitHub
-5. ปิดแล้วเปิด `npm run dev` ใหม่ จากนั้นเปิด http://localhost:3000/app/admin/org-units
+โครงการ Supabase ที่ใช้: `ukdlgujfongdesbbnblm` (Singapore)
+migration ของบทที่ 2 ทั้ง 4 ไฟล์และข้อมูลทดสอบ ถูกรันลงโครงการนี้แล้วเมื่อ 3 ต.ค. 2569
+
+สิ่งที่ต้องทำบนเครื่องตนเอง (ครั้งเดียว):
+
+1. คัดลอกไฟล์ `.env.example` เป็นชื่อ `.env.local` (สองค่าแรกเติมไว้ให้แล้ว)
+2. เติมค่า `SUPABASE_SECRET_KEY` จากหน้า Project Settings > API Keys > Secret keys ของ Supabase
+   - ห้ามส่งค่านี้ให้ผู้อื่น และห้ามนำไฟล์ `.env.local` ขึ้น GitHub
+3. ปิดแล้วเปิด `npm run dev` ใหม่ จากนั้นเปิด http://localhost:3000/app/admin/org-units
+
+ถ้าย้ายไปใช้โครงการ Supabase ใหม่: รันไฟล์ใน `supabase/migrations/` ทีละไฟล์ตามลำดับเลขหน้าชื่อไฟล์
+ใน SQL Editor แล้วรัน `supabase/seed_test_data.sql` ถ้าต้องการข้อมูลทดสอบ
 
 หมายเหตุ: จนกว่าจะจบบทที่ 3 (ล็อกอินและสิทธิ์) หน้าผู้ดูแลระบบยังไม่มีการป้องกัน
 ให้ใช้บนเครื่องตนเองเท่านั้น ยังไม่ควรนำขึ้นเว็บจริง

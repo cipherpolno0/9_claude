@@ -30,7 +30,7 @@ export default async function OrgUnitsPage() {
       const e = error as { code?: string; message?: string };
       loadError =
         e.code === "PGRST205" || e.code === "42P01"
-          ? "ยังไม่พบตาราง org_units ในฐานข้อมูล กรุณารันไฟล์ migration ทั้ง 3 ไฟล์ในโฟลเดอร์ supabase/migrations ก่อน"
+          ? "ยังไม่พบตาราง org_units ในฐานข้อมูล กรุณารันไฟล์ migration ทุกไฟล์ในโฟลเดอร์ supabase/migrations ก่อน"
           : `อ่านข้อมูลไม่ได้: ${e.message ?? "ไม่ทราบสาเหตุ"}`;
     }
   }
