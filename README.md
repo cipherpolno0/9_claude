@@ -1,36 +1,24 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# เว็บไซต์กองบริหารทะเบียนและวัดผล
 
-## Getting Started
+เว็บรวม 9 ระบบงานการศึกษาและการปกครองคณะสงฆ์ไว้ในเว็บเดียว
+กติกาของโครงการอยู่ในไฟล์ `CLAUDE.md`
 
-First, run the development server:
+## วิธีเปิดดูบนเครื่องตนเอง
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. ติดตั้ง Node.js รุ่น 20 ขึ้นไป (ดาวน์โหลดจาก https://nodejs.org เลือกรุ่น LTS)
+2. เปิดโปรแกรม Terminal (Windows: PowerShell) แล้วเข้าโฟลเดอร์โครงการนี้
+3. พิมพ์ `npm install` แล้วรอจนเสร็จ (ทำครั้งแรกครั้งเดียว)
+4. พิมพ์ `npm run dev`
+5. เปิดเบราว์เซอร์ไปที่ http://localhost:3000
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## โครงสร้างโดยย่อ
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `src/lib/site.ts` ชื่อเว็บและรายการเมนูทั้งหมด (แก้ที่นี่ที่เดียว)
+- `src/app/globals.css` โทนสีและขนาดตัวอักษรของทั้งเว็บ
+- `src/app/(public)/` หน้าโซนสาธารณะ ไม่ต้องล็อกอิน
+- `src/app/app/` หน้าโซนพื้นที่ทำงาน (เส้นทาง /app/...)
+- `src/components/` ชิ้นส่วนที่ใช้ซ้ำ
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ความคืบหน้า
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- บทที่ 1: สร้างโครงการและโครงหน้าเว็บ — เสร็จแล้ว

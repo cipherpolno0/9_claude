@@ -1,26 +1,88 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
+/*
+  โทนสีของทั้งเว็บ กำหนดที่นี่ที่เดียว
+  เหลืองทอง + น้ำตาลเข้ม บนพื้นขาว
+*/
 :root {
+  --radius: 0.625rem;
+
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #2a190c;
+
+  --card: #ffffff;
+  --card-foreground: #2a190c;
+  --popover: #ffffff;
+  --popover-foreground: #2a190c;
+
+  /* น้ำตาลเข้ม: สีหลัก */
+  --primary: #4e2d12;
+  --primary-foreground: #ffffff;
+
+  /* เหลืองทอง: สีเน้น */
+  --gold: #d9a520;
+  --gold-foreground: #2a190c;
+
+  --secondary: #fbf3dc;
+  --secondary-foreground: #4e2d12;
+  --accent: #f6e6b4;
+  --accent-foreground: #2a190c;
+
+  --muted: #f8f4ec;
+  --muted-foreground: #5f4d3d;
+
+  --destructive: #b3261e;
+  --border: #e4d8c0;
+  --input: #cdbb98;
+  --ring: #b8860b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: "Sarabun", "Leelawadee UI", "Tahoma", sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  html {
+    /* ตัวอักษรพื้นฐาน 17px อ่านง่ายสำหรับผู้สูงอายุ */
+    font-size: 17px;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    line-height: 1.7;
+  }
+  h1,
+  h2,
+  h3 {
+    line-height: 1.4;
+  }
 }
