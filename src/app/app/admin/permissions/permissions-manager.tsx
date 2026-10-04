@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { ErrorText, InfoText } from "@/components/form";
 import { PERSONNEL_SCOPES, PERSONNEL_SCOPE_LABEL, scopeRank, type PersonnelScope } from "@/lib/auth/config";
 
-import { setRoleMenu, setRolePersonnelScope } from "./actions";
+import { setRoleMenu, setRoleScope, type ScopeArea } from "./actions";
 
 export type RoleRow = {
   key: string;
@@ -13,7 +13,15 @@ export type RoleRow = {
   requires_org_unit: boolean;
   personnel_view: PersonnelScope;
   personnel_edit: PersonnelScope;
+  places_view: PersonnelScope;
+  places_edit: PersonnelScope;
 };
+
+/** ระบบที่ตั้งขอบเขตดู/แก้ไขได้ (เพิ่มระบบใหม่ที่นี่ คู่กับคอลัมน์ <area>_view / <area>_edit ใน roles) */
+const AREAS: { key: ScopeArea; title: string; menu: string; menuTitle: string }[] = [
+  { key: "personnel", title: "ทะเบียนบุคคล", menu: "/app/personnel", menuTitle: "บุคลากร" },
+  { key: "places", title: "ทะเบียนสถานที่", menu: "/app/places", menuTitle: "ทะเบียนสถานที่" },
+];
 export type MenuRow = { role_key: string; menu_href: string; enabled: boolean };
 
 const selectClass =
@@ -32,7 +40,11 @@ export function PermissionsManager({
     Object.fromEntries(menus.map((m) => [`${m.role_key}|${m.menu_href}`, m.enabled])),
   );
   const [scopes, setScopes] = useState(() =>
-    Object.fromEntries(roles.map((r) => [r.key, { view: r.personnel_view, edit: r.personnel_edit }])),
+    Object.fromEntries(
+      roles.flatMap((r) =>
+        AREAS.map((a) => [`${r.key}|${a.key}`, { view: r[`${a.key}_view`], edit: r[`${a.key}_edit`] }] as const),
+      ),
+    ),
   );
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,22 +65,23 @@ export function PermissionsManager({
     });
   };
 
-  const changeScope = (role: RoleRow, field: "view" | "edit", value: PersonnelScope) => {
-    const before = scopes[role.key];
+  const changeScope = (role: RoleRow, area: ScopeArea, field: "view" | "edit", value: PersonnelScope) => {
+    const id = `${role.key}|${area}`;
+    const before = scopes[id];
     const next = { ...before, [field]: value };
     // สิทธิ์แก้ไขกว้างกว่าสิทธิ์ดูไม่ได้: ลดสิทธิ์ดู = ลดสิทธิ์แก้ไขตาม, เพิ่มสิทธิ์แก้ไข = เพิ่มสิทธิ์ดูตาม
     if (scopeRank(next.edit) > scopeRank(next.view)) {
       if (field === "view") next.edit = next.view;
       else next.view = next.edit;
     }
-    setScopes((s) => ({ ...s, [role.key]: next }));
+    setScopes((s) => ({ ...s, [id]: next }));
     startTransition(async () => {
       setError(null);
       setFlash(null);
-      const result = await setRolePersonnelScope(role.key, next.view, next.edit);
+      const result = await setRoleScope(role.key, area, next.view, next.edit);
       if (result.ok) setFlash(`บันทึกแล้ว: ${role.name}`);
       else {
-        setScopes((s) => ({ ...s, [role.key]: before }));
+        setScopes((s) => ({ ...s, [id]: before }));
         setError(result.error);
       }
     });
@@ -83,6 +96,7 @@ export function PermissionsManager({
           <li>ทุกคนเห็นแดชบอร์ด และเห็นประวัติของตนเองเสมอ</li>
           <li>สิทธิ์แก้ไขกว้างกว่าสิทธิ์ดูไม่ได้ และไม่มีบทบาทใดเห็นข้ามสายการปกครอง ยกเว้นเลือก “ทุกเขต”</li>
           <li>ขอบเขตทะเบียนบุคคลใช้กับ ข้อมูลบุคคล ตำแหน่งปกครอง ทะเบียน จศป. และคำขอเปลี่ยนสถานะ</li>
+          <li>ขอบเขตทะเบียนสถานที่ใช้กับ วัด สำนักเรียน สำนักศาสนศึกษา สถานศึกษา และองค์กร ตามเขตปกครองคณะสงฆ์ที่สังกัด</li>
         </ul>
       </div>
 
@@ -93,11 +107,11 @@ export function PermissionsManager({
 
       {roles.map((role) => {
         const locked = role.key === "admin";
-        const scope = scopes[role.key];
         // บทบาทที่ไม่ผูกกับเขตปกครองไม่มี "หน่วยตน" จึงเลือกได้เพียง ไม่ได้ หรือ ทุกเขต
-        const options = PERSONNEL_SCOPES.filter(
-          (s) => role.requires_org_unit || s === "none" || s === "all" || s === scope.view || s === scope.edit,
-        );
+        const optionsOf = (scope: { view: PersonnelScope; edit: PersonnelScope }) =>
+          PERSONNEL_SCOPES.filter(
+            (s) => role.requires_org_unit || s === "none" || s === "all" || s === scope.view || s === scope.edit,
+          );
         return (
           <fieldset key={role.key} className="rounded-xl border bg-card p-5" data-role={role.key}>
             <legend className="px-1 text-xl font-bold text-primary">{role.name}</legend>
@@ -123,46 +137,54 @@ export function PermissionsManager({
               ))}
             </div>
 
-            <p className="mt-5 font-semibold">ทะเบียนบุคคล</p>
-            <div className="mt-2 grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1">
-                <span>ดูได้</span>
-                <select
-                  className={selectClass}
-                  value={scope.view}
-                  disabled={pending || locked}
-                  onChange={(e) => changeScope(role, "view", e.target.value as PersonnelScope)}
-                  aria-label={`${role.name}: ดูทะเบียนบุคคล`}
-                >
-                  {options.map((s) => (
-                    <option key={s} value={s}>
-                      {PERSONNEL_SCOPE_LABEL[s]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span>เพิ่มและแก้ไขได้</span>
-                <select
-                  className={selectClass}
-                  value={scope.edit}
-                  disabled={pending || locked}
-                  onChange={(e) => changeScope(role, "edit", e.target.value as PersonnelScope)}
-                  aria-label={`${role.name}: แก้ไขทะเบียนบุคคล`}
-                >
-                  {options.map((s) => (
-                    <option key={s} value={s}>
-                      {PERSONNEL_SCOPE_LABEL[s]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {scope.view !== "none" && !locked && !(enabled[`${role.key}|/app/personnel`] ?? false) ? (
-              <p className="mt-2 text-sm text-destructive">
-                บทบาทนี้มีสิทธิ์ดูทะเบียนบุคคล แต่ยังไม่ได้เปิดเมนู บุคลากร จึงเข้าหน้าทะเบียนไม่ได้
-              </p>
-            ) : null}
+            {AREAS.map((area) => {
+              const scope = scopes[`${role.key}|${area.key}`];
+              const options = optionsOf(scope);
+              return (
+                <div key={area.key} data-area={area.key}>
+                  <p className="mt-5 font-semibold">{area.title}</p>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    <label className="flex flex-col gap-1">
+                      <span>ดูได้</span>
+                      <select
+                        className={selectClass}
+                        value={scope.view}
+                        disabled={pending || locked}
+                        onChange={(e) => changeScope(role, area.key, "view", e.target.value as PersonnelScope)}
+                        aria-label={`${role.name}: ดู${area.title}`}
+                      >
+                        {options.map((s) => (
+                          <option key={s} value={s}>
+                            {PERSONNEL_SCOPE_LABEL[s]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span>เพิ่มและแก้ไขได้</span>
+                      <select
+                        className={selectClass}
+                        value={scope.edit}
+                        disabled={pending || locked}
+                        onChange={(e) => changeScope(role, area.key, "edit", e.target.value as PersonnelScope)}
+                        aria-label={`${role.name}: แก้ไข${area.title}`}
+                      >
+                        {options.map((s) => (
+                          <option key={s} value={s}>
+                            {PERSONNEL_SCOPE_LABEL[s]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {scope.view !== "none" && !locked && !(enabled[`${role.key}|${area.menu}`] ?? false) ? (
+                    <p className="mt-2 text-sm text-destructive">
+                      บทบาทนี้มีสิทธิ์ดู{area.title} แต่ยังไม่ได้เปิดเมนู {area.menuTitle} จึงเข้าหน้าทะเบียนไม่ได้
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
           </fieldset>
         );
       })}

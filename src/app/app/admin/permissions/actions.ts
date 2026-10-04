@@ -27,13 +27,18 @@ export async function setRoleMenu(roleKey: string, href: string, enabled: boolea
   return { ok: true, message: "บันทึกแล้ว" };
 }
 
-export async function setRolePersonnelScope(
+/** ระบบที่มีขอบเขตดู/แก้ไขตามเขตปกครอง: คอลัมน์ใน roles คือ <area>_view และ <area>_edit */
+const SCOPE_AREAS = ["personnel", "places"] as const;
+export type ScopeArea = (typeof SCOPE_AREAS)[number];
+
+export async function setRoleScope(
   roleKey: string,
+  area: ScopeArea,
   view: PersonnelScope,
   edit: PersonnelScope,
 ): Promise<ActionResult> {
   if (roleKey === "admin") return { ok: false, error: "ผู้ดูแลระบบดูและแก้ไขได้ทุกเขตเสมอ" };
-  if (!PERSONNEL_SCOPES.includes(view) || !PERSONNEL_SCOPES.includes(edit)) {
+  if (!SCOPE_AREAS.includes(area) || !PERSONNEL_SCOPES.includes(view) || !PERSONNEL_SCOPES.includes(edit)) {
     return { ok: false, error: "ค่าที่เลือกไม่ถูกต้อง" };
   }
   if (scopeRank(edit) > scopeRank(view)) {
@@ -42,7 +47,7 @@ export async function setRolePersonnelScope(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("roles")
-    .update({ personnel_view: view, personnel_edit: edit })
+    .update({ [`${area}_view`]: view, [`${area}_edit`]: edit })
     .eq("key", roleKey)
     .select("key");
   if (error) return { ok: false, error: explainError(error) };

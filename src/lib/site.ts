@@ -4,6 +4,7 @@ import {
   ClipboardList,
   FileSpreadsheet,
   LayoutDashboard,
+  Map as MapIcon,
   Mail,
   MapPinned,
   Network,
@@ -190,6 +191,13 @@ export const adminMenu: AdminMenuItem[] = [
     href: "/app/admin/org-units",
     description: "ต้นไม้ ส่วนกลาง ภาค จังหวัด อำเภอ ตำบล แยกนิกาย และนำเข้าจาก Excel",
     icon: Network,
+    adminOnly: true,
+  },
+  {
+    title: "เขตการปกครองบ้านเมือง",
+    href: "/app/admin/civil-areas",
+    description: "จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ สำหรับตัวเลือกที่อยู่ นำเข้าและส่งออก Excel",
+    icon: MapIcon,
     adminOnly: true,
   },
   {
