@@ -14,7 +14,17 @@ const textareaClass =
   "min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
 /** ฟอร์มของผู้พิจารณา: เห็นชอบ / ไม่เห็นชอบ / ส่งกลับแก้ไข */
-export function DecisionForm({ requestId }: { requestId: string }) {
+export function DecisionForm({
+  requestId,
+  approveLabel = DECISION_LABEL.approved,
+  allowReject = true,
+}: {
+  requestId: string;
+  /** คำบนปุ่มเห็นชอบ (การแจ้งใช้ "รับทราบ") */
+  approveLabel?: string;
+  /** การแจ้งไม่มีการ "ไม่เห็นชอบ" มีเพียงรับทราบหรือส่งกลับแก้ไข */
+  allowReject?: boolean;
+}) {
   const router = useRouter();
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -43,19 +53,23 @@ export function DecisionForm({ requestId }: { requestId: string }) {
           value={comment}
           onChange={(e) => setComment(e.target.value)}
         />
-        <p className="text-sm text-muted-foreground">ต้องระบุเมื่อไม่เห็นชอบหรือส่งกลับแก้ไข</p>
+        <p className="text-sm text-muted-foreground">
+          {allowReject ? "ต้องระบุเมื่อไม่เห็นชอบหรือส่งกลับแก้ไข" : "ต้องระบุเมื่อส่งกลับแก้ไข"}
+        </p>
       </div>
       <ErrorText>{error}</ErrorText>
       <div className="flex flex-wrap gap-2">
         <Button disabled={pending} onClick={() => decide("approved")}>
-          {DECISION_LABEL.approved}
+          {approveLabel}
         </Button>
         <Button variant="outline" disabled={pending} onClick={() => decide("returned")}>
           {DECISION_LABEL.returned}
         </Button>
-        <Button variant="outline" disabled={pending} onClick={() => decide("rejected")}>
-          {DECISION_LABEL.rejected}
-        </Button>
+        {allowReject ? (
+          <Button variant="outline" disabled={pending} onClick={() => decide("rejected")}>
+            {DECISION_LABEL.rejected}
+          </Button>
+        ) : null}
       </div>
     </div>
   );

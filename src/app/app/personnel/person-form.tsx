@@ -15,7 +15,7 @@ import {
   PALI_GRADES,
   PALI_LABEL,
   PERSON_STATUSES,
-  PERSON_STATUS_LABEL,
+  personStatusLabel,
   PERSON_TYPES,
   PERSON_TYPE_LABEL,
   type Person,
@@ -25,7 +25,16 @@ import {
 import { savePerson } from "./actions";
 
 /** ฟอร์มเพิ่มและแก้ไขบุคคล (person ว่าง = เพิ่มใหม่) */
-export function PersonForm({ person, units }: { person?: Person; units: AccessibleOrgUnit[] }) {
+export function PersonForm({
+  person,
+  units,
+  isAdmin = false,
+}: {
+  person?: Person;
+  units: AccessibleOrgUnit[];
+  /** ผู้ดูแลระบบแก้สถานะของบุคคลที่มีอยู่แล้วได้ (ผู้อื่นต้องใช้คำขอหรือการแจ้งที่แท็บ สถานะ) */
+  isAdmin?: boolean;
+}) {
   const { state, onSubmit, pending } = useServerForm(savePerson);
   const [type, setType] = useState<PersonType>(person?.person_type ?? "monastic");
   const monastic = type === "monastic";
@@ -150,13 +159,24 @@ export function PersonForm({ person, units }: { person?: Person; units: Accessib
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <Label htmlFor="status">สถานะปัจจุบัน</Label>
-              <select id="status" name="status" className={selectClass} defaultValue={person?.status ?? "active"}>
-                {PERSON_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {PERSON_STATUS_LABEL[s]}
-                  </option>
-                ))}
-              </select>
+              {!person || isAdmin ? (
+                <select id="status" name="status" className={selectClass} defaultValue={person?.status ?? "active"}>
+                  {PERSON_STATUSES.filter((s) => s !== "transfer_pending" || person?.status === s).map((s) => (
+                    <option key={s} value={s}>
+                      {personStatusLabel(s, type)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="rounded-md border border-input bg-muted px-3 py-2" data-testid="status-readonly">
+                  {personStatusLabel(person.status, type)}
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                {person
+                  ? "สถานะเปลี่ยนผ่านคำขอหรือการแจ้งที่แท็บ สถานะ ของหน้าประวัติ"
+                  : "ใช้กับการบันทึกข้อมูลย้อนหลัง บุคคลที่ยังปฏิบัติหน้าที่ให้คงค่าเดิมไว้"}
+              </p>
             </div>
             <Field label="หมายเหตุ" name="note" defaultValue={person?.note ?? ""} />
           </div>

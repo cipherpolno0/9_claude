@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import type { FormState } from "@/components/form";
 import type { ImportPreviewResult } from "@/components/import-dialog";
 import { uploadAttachment } from "@/lib/attachments/actions";
+import { ATTACHMENT_MAX_BYTES, ATTACHMENT_TYPES } from "@/lib/attachments/config";
 import { explainError, type ActionResult } from "@/lib/errors";
 import { readUploadedSheet } from "@/lib/excel";
 import { fetchAccessibleUnits } from "@/lib/org-units-server";
@@ -22,6 +23,7 @@ import {
   type PersonImportRow,
 } from "@/lib/persons";
 import { isUuid } from "@/lib/persons-server";
+import { isNoticeType, isStatusType } from "@/lib/status";
 import { createClient } from "@/lib/supabase/server";
 
 const LIST = "/app/personnel";
@@ -345,4 +347,61 @@ export async function linkPersonUser(_prev: FormState, formData: FormData): Prom
   if (error) return { error: explainError(error) };
   revalidatePath(`${LIST}/${personId}`);
   return { message: email ? "ผูกบัญชีแล้ว ระบบแจ้งเจ้าของบัญชีให้ทราบแล้ว" : "เลิกผูกบัญชีแล้ว" };
+}
+
+// ------------------------------------------------------------------
+// คำขอเปลี่ยนสถานะ (ขอย้าย ลาออก) และการแจ้ง (มรณภาพ-ตาย ลาสิกขา พ้นตำแหน่งด้วยเหตุอื่น)
+// ------------------------------------------------------------------
+
+/** ยื่นคำขอหรือบันทึกการแจ้งผ่านเครื่องอนุมัติกลาง แนบหลักฐาน (ถ้ามี) แล้วพาไปหน้าคำขอ */
+export async function submitStatusRequest(_prev: FormState, formData: FormData): Promise<FormState> {
+  const personId = text(formData, "person_id");
+  const type = text(formData, "type");
+  const effectiveOn = text(formData, "effective_on");
+  const file = formData.get("file");
+  const hasFile = file instanceof File && file.size > 0;
+
+  if (!isUuid(personId)) return { error: "ไม่พบบุคคลนี้" };
+  if (!isStatusType(type)) return { error: "กรุณาเลือกเรื่องที่จะยื่น" };
+  if (!effectiveOn) return { error: "กรุณากรอกวันที่ให้ครบ (วัน เดือน ปี พ.ศ.)" };
+  if (type === "transfer" && !isUuid(text(formData, "to_unit_id"))) return { error: "กรุณาเลือกหน่วยปลายทาง" };
+  if ((type === "resign" || type === "other_exit_notice") && !text(formData, "detail")) {
+    return { error: "กรุณาระบุเหตุผล" };
+  }
+  // ตรวจไฟล์ก่อนสร้างคำขอ เพื่อไม่ให้เกิดคำขอที่ไม่มีหลักฐาน
+  if (isNoticeType(type) && !hasFile) return { error: "กรุณาแนบหลักฐาน (PDF รูปภาพ Excel หรือ Word)" };
+  if (hasFile) {
+    if (!ATTACHMENT_TYPES[file.type]) return { error: "ไฟล์แนบรับเฉพาะ PDF รูปภาพ (JPG, PNG) Excel และ Word" };
+    if (file.size > ATTACHMENT_MAX_BYTES) return { error: "ไฟล์แนบใหญ่เกิน 10 MB" };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("submit_status_request", {
+    p_person_id: personId,
+    p_type: type,
+    p_data: {
+      effective_on: effectiveOn,
+      detail: text(formData, "detail"),
+      to_unit_id: text(formData, "to_unit_id"),
+      from_place: text(formData, "from_place"),
+      to_place: text(formData, "to_place"),
+    },
+  });
+  if (error) return { error: explainError(error) };
+  const requestId = data as string;
+
+  let uploadFailed = false;
+  if (hasFile) {
+    const upload = new FormData();
+    upload.set("file", file);
+    upload.set("entity_table", "requests");
+    upload.set("entity_id", requestId);
+    uploadFailed = !(await uploadAttachment(upload)).ok;
+  }
+
+  revalidatePath(LIST);
+  revalidatePath(`${LIST}/${personId}`);
+  revalidatePath(`${LIST}/requests`);
+  revalidatePath("/app/me");
+  redirect(`/app/approvals/${requestId}${uploadFailed ? "?upload=failed" : ""}`);
 }

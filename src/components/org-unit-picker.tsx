@@ -45,11 +45,14 @@ export function OrgUnitPicker({
   defaultValue,
   required,
   onChange,
+  autoSelect = true,
 }: {
   units: PickerUnit[];
   name: string;
   defaultValue?: string | null;
   required?: boolean;
+  /** เลือกให้อัตโนมัติในชั้นที่มีตัวเลือกเดียว (ปิดเมื่อผู้ใช้ต้องตั้งใจเลือกเอง เช่น หน่วยปลายทางของคำขอย้าย) */
+  autoSelect?: boolean;
   /** แจ้งค่าที่เลือก (ว่าง = ยังไม่ได้เลือกหน่วยที่เลือกได้) */
   onChange?: (orgUnitId: string) => void;
 }) {
@@ -79,7 +82,7 @@ export function OrgUnitPicker({
 
   const [sect, setSect] = useState<Sect | "">(initialSect);
   const [path, setPathState] = useState<string[]>(() =>
-    initial.length > 0 ? initial : autoFill(units, initialSect, []),
+    initial.length > 0 || !autoSelect ? initial : autoFill(units, initialSect, []),
   );
 
   const levels = LEVELS;
@@ -87,7 +90,7 @@ export function OrgUnitPicker({
   const value = deepest && deepest.selectable !== false ? deepest.id : "";
 
   const setPath = (next: string[], nextSect: Sect | "" = sect) => {
-    setPathState(autoFill(units, nextSect, next));
+    setPathState(autoSelect ? autoFill(units, nextSect, next) : next);
   };
 
   // แจ้งค่าที่เลือกทุกครั้งที่เปลี่ยน รวมค่าที่ระบบเลือกให้อัตโนมัติตอนเปิดหน้า

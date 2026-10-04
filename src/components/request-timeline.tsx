@@ -32,7 +32,14 @@ const DOT: Record<StepStatus, string> = {
   returned: "border-ring bg-gold text-gold-foreground",
 };
 
-export function RequestTimeline({ data }: { data: TimelineData }) {
+export function RequestTimeline({
+  data,
+  approvedLabel,
+}: {
+  data: TimelineData;
+  /** คำที่ใช้แทน "เห็นชอบ" ของขั้นที่ผ่านแล้ว (เช่น "รับทราบ" สำหรับการแจ้ง) */
+  approvedLabel?: string;
+}) {
   return (
     <div data-testid="request-timeline">
       <p className="font-semibold">
@@ -43,7 +50,7 @@ export function RequestTimeline({ data }: { data: TimelineData }) {
             data.status === "rejected" ? "border-destructive text-destructive" : "border-input text-primary",
           )}
         >
-          {REQUEST_STATUS_LABEL[data.status]}
+          {data.status === "approved" && approvedLabel ? `${approvedLabel}แล้ว` : REQUEST_STATUS_LABEL[data.status]}
         </span>
       </p>
       <ol className="mt-3">
@@ -71,7 +78,7 @@ export function RequestTimeline({ data }: { data: TimelineData }) {
                   ขั้นที่ {step.step_no} · {LEVEL_LABEL[step.level]} · {step.unit_name}
                 </p>
                 <p className="text-sm">
-                  {STEP_STATUS_LABEL[step.status]}
+                  {step.status === "approved" && approvedLabel ? approvedLabel : STEP_STATUS_LABEL[step.status]}
                   {step.decided_at ? ` · ${thaiDateTime(step.decided_at)}` : ""}
                   {step.decider_name ? ` · โดย ${step.decider_name}` : ""}
                 </p>

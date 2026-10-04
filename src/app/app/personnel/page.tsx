@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { GraduationCap, UserPlus } from "lucide-react";
+import { ClipboardList, GraduationCap, UserPlus } from "lucide-react";
 
 import { DataTable, type DataTableRow } from "@/components/data-table";
 import { ErrorText } from "@/components/form";
 import { Button } from "@/components/ui/button";
 import { requireMenu } from "@/lib/auth/guards";
 import { fetchAccessibleUnits } from "@/lib/org-units-server";
-import { PERSON_STATUSES, PERSON_STATUS_LABEL, PERSON_TYPE_LABEL, personName, phansaOf } from "@/lib/persons";
+import {
+  PERSON_STATUSES,
+  PERSON_STATUS_LABEL,
+  PERSON_TYPE_LABEL,
+  countsPhansa,
+  personName,
+  personStatusLabel,
+  phansaOf,
+} from "@/lib/persons";
 import { fetchPositionTypes, isPersonnelEditor, personnelTableParams, queryPersonnel } from "@/lib/persons-server";
 import { findWorkspaceMenu } from "@/lib/site";
 import { explainError } from "@/lib/errors";
@@ -35,7 +43,7 @@ export default async function PersonnelPage({
   const canEdit = isPersonnelEditor(ctx);
 
   const rows: DataTableRow[] = table.rows.map((p) => {
-    const phansa = p.person_type === "monastic" && p.status === "active" ? phansaOf(p.ordination_date) : null;
+    const phansa = countsPhansa(p) ? phansaOf(p.ordination_date) : null;
     return {
       id: p.id,
       cells: [
@@ -49,7 +57,7 @@ export default async function PersonnelPage({
         </>,
         p.positions ? <span className="whitespace-pre-line">{p.positions}</span> : "-",
         phansa === null ? "-" : phansa,
-        p.is_active ? PERSON_STATUS_LABEL[p.status] : "ปิดใช้งาน",
+        p.is_active ? personStatusLabel(p.status, p.person_type) : "ปิดใช้งาน",
       ],
     };
   });
@@ -68,6 +76,12 @@ export default async function PersonnelPage({
             <Link href="/app/personnel/education">
               <GraduationCap aria-hidden />
               ทะเบียน จศป.
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/app/personnel/requests">
+              <ClipboardList aria-hidden />
+              คำขอและการแจ้ง
             </Link>
           </Button>
           {canEdit ? (

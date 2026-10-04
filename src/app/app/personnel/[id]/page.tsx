@@ -36,12 +36,16 @@ import {
 import { thaiDate } from "@/lib/thai";
 import { cn } from "@/lib/utils";
 
+import { StatusTimeline } from "@/components/status-timeline";
+import { STATUS_TYPES, statusTypeLabel, type StatusType } from "@/lib/status";
+import { fetchOpenStatusRequest, fetchStatusChanges, fetchUnitsOfSect } from "@/lib/status-server";
 import { createClient } from "@/lib/supabase/server";
 
 import { FactRow, PersonFacts } from "../person-facts";
 import { AppointmentsPanel } from "./appointments-panel";
 import { EducationPanel } from "./education-panel";
 import { LinkAccount } from "./link-account";
+import { StatusRequestForm } from "../status-request-form";
 import { PersonActiveButton } from "./person-actions";
 import { PersonPhoto } from "./person-photo";
 
@@ -52,6 +56,7 @@ const TABS = [
   { key: "general", label: "ข้อมูลทั่วไป" },
   { key: "positions", label: "ตำแหน่ง" },
   { key: "education", label: "จศป." },
+  { key: "status", label: "สถานะ" },
   { key: "files", label: "เอกสารแนบ" },
   { key: "history", label: "ประวัติการแก้ไข" },
 ] as const;
@@ -207,6 +212,8 @@ export default async function PersonPage({
           />
         ) : null}
 
+        {tab === "status" ? <StatusTab person={person} canEdit={canEdit} isOwner={person.user_id === ctx.user.id} /> : null}
+
         {tab === "files" ? (
           <div className="rounded-xl border bg-card p-5">
             <h2 className="text-xl font-bold text-primary">เอกสารแนบของบุคคล</h2>
@@ -229,6 +236,70 @@ export default async function PersonPage({
         ) : null}
       </div>
     </section>
+  );
+}
+
+/** แท็บสถานะ: เส้นเวลาสถานะ คำขอที่ยังไม่ได้ผล และแบบยื่นคำขอหรือบันทึกการแจ้ง */
+async function StatusTab({
+  person,
+  canEdit,
+  isOwner,
+}: {
+  person: NonNullable<Awaited<ReturnType<typeof fetchPerson>>>;
+  canEdit: boolean;
+  isOwner: boolean;
+}) {
+  const supabase = await createClient();
+  const [changes, open, unitRes] = await Promise.all([
+    fetchStatusChanges(person.id),
+    fetchOpenStatusRequest(person.id),
+    supabase.from("org_units").select("sect").eq("id", person.org_unit_id).maybeSingle(),
+  ]);
+
+  // ชนิดที่ผู้ใช้คนนี้ยื่นได้ ตามสถานะปัจจุบันของบุคคล (ฐานข้อมูลตรวจซ้ำอีกชั้น)
+  const types: StatusType[] = STATUS_TYPES.filter((t) => {
+    if (!person.is_active) return false;
+    if (t === "transfer" || t === "resign") return (canEdit || isOwner) && person.status === "active";
+    if (!canEdit) return false;
+    if (t === "other_exit_notice") return person.status === "active";
+    if (t === "death_notice") return person.status !== "deceased";
+    return person.person_type === "monastic" && person.status !== "deceased" && person.status !== "disrobed";
+  });
+  const units = !open && types.includes("transfer") ? await fetchUnitsOfSect(unitRes.data?.sect ?? null) : [];
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="rounded-xl border bg-card p-5">
+        <h2 className="mb-3 text-xl font-bold text-primary">เส้นเวลาสถานะ</h2>
+        <StatusTimeline changes={changes} personType={person.person_type} currentStatus={person.status} />
+      </div>
+
+      {open ? (
+        <div className="rounded-xl border-2 border-ring bg-card p-5" data-testid="status-open-request">
+          <h2 className="text-xl font-bold text-primary">รายการที่ยังไม่ได้ผล</h2>
+          <p className="mt-2">
+            <Link href={`/app/approvals/${open.id}`} className="font-semibold text-primary underline underline-offset-4">
+              {open.request_no} · {statusTypeLabel(open.type_key, person.person_type)}
+            </Link>{" "}
+            ต้องรอผลหรือยกเลิกรายการนี้ก่อน จึงยื่นเรื่องใหม่ได้
+          </p>
+        </div>
+      ) : types.length > 0 ? (
+        <div className="rounded-xl border-2 border-ring bg-card p-5">
+          <h2 className="text-xl font-bold text-primary">ยื่นคำขอหรือบันทึกการแจ้ง</h2>
+          <p className="mb-3 text-muted-foreground">
+            ขอย้ายและลาออกต้องได้รับอนุมัติตามสายบังคับบัญชา ส่วนการแจ้งต้องแนบหลักฐานและให้หน่วยเหนือ 1 ชั้นรับทราบ
+          </p>
+          <StatusRequestForm
+            personId={person.id}
+            personType={person.person_type}
+            types={types}
+            units={units}
+            fromPlace={person.temple_name}
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

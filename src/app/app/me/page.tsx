@@ -7,10 +7,14 @@ import { fetchEducationStaff } from "@/lib/education-server";
 import { PERSON_COLUMNS, isCurrentAppointment, personName, type Person } from "@/lib/persons";
 import { fetchAppointments } from "@/lib/persons-server";
 import { REQUEST_STATUS_LABEL, type RequestStatus } from "@/lib/requests/labels";
+import { StatusTimeline } from "@/components/status-timeline";
+import { statusTypeLabel } from "@/lib/status";
+import { fetchOpenStatusRequest, fetchStatusChanges, fetchUnitsOfSect } from "@/lib/status-server";
 import { createClient } from "@/lib/supabase/server";
 import { thaiDate, thaiDateTime } from "@/lib/thai";
 
 import { PersonFacts } from "../personnel/person-facts";
+import { StatusRequestForm } from "../personnel/status-request-form";
 import { ProfileEditForm } from "./profile-edit-form";
 
 export const metadata: Metadata = { title: "ประวัติของฉัน" };
@@ -24,7 +28,7 @@ export default async function MyProfilePage() {
   // บุคคลในทะเบียนที่ผูกกับบัญชีนี้ (RLS ให้เจ้าของบัญชีเห็นประวัติของตนเอง)
   const { data } = await supabase
     .from("persons")
-    .select(`${PERSON_COLUMNS}, org_units(name)`)
+    .select(`${PERSON_COLUMNS}, org_units(name, sect)`)
     .eq("user_id", ctx.user.id)
     .maybeSingle();
 
@@ -43,10 +47,14 @@ export default async function MyProfilePage() {
     );
   }
 
-  const { org_units, ...person } = data as unknown as Person & { org_units: { name: string } | null };
-  const [appointments, education, requestsRes] = await Promise.all([
+  const { org_units, ...person } = data as unknown as Person & {
+    org_units: { name: string; sect: "mahanikaya" | "dhammayut" | null } | null;
+  };
+  const [appointments, education, statusChanges, openStatus, requestsRes] = await Promise.all([
     fetchAppointments(person.id),
     fetchEducationStaff(person.id),
+    fetchStatusChanges(person.id),
+    fetchOpenStatusRequest(person.id),
     supabase
       .from("requests")
       .select("id, request_no, status, submitted_at")
@@ -59,6 +67,8 @@ export default async function MyProfilePage() {
   const openRequest = requests.find((r) => r.status === "pending" || r.status === "returned");
   const current = appointments.filter((a) => isCurrentAppointment(a));
   const staff = education.filter((e) => e.is_active);
+  const canRequestStatus = person.is_active && person.status === "active" && !openStatus;
+  const units = canRequestStatus ? await fetchUnitsOfSect(org_units?.sect ?? null) : [];
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">
@@ -109,6 +119,32 @@ export default async function MyProfilePage() {
             ))}
           </ul>
         )}
+      </div>
+
+      <div className="mt-6 rounded-xl border bg-card p-5" data-testid="me-status">
+        <h2 className="mb-3 text-xl font-bold text-primary">สถานะ</h2>
+        <StatusTimeline changes={statusChanges} personType={person.person_type} currentStatus={person.status} />
+        {openStatus ? (
+          <p className="mt-4 border-t pt-4">
+            มีรายการที่ยังไม่ได้ผล:{" "}
+            <Link href={`/app/approvals/${openStatus.id}`} className="font-semibold text-primary underline underline-offset-4">
+              {openStatus.request_no} · {statusTypeLabel(openStatus.type_key, person.person_type)}
+            </Link>
+          </p>
+        ) : canRequestStatus ? (
+          <details className="mt-4 border-t pt-4">
+            <summary className="cursor-pointer font-semibold text-primary">ขอย้าย หรือ ขอลาออก</summary>
+            <div className="mt-3">
+              <StatusRequestForm
+                personId={person.id}
+                personType={person.person_type}
+                types={["transfer", "resign"]}
+                units={units}
+                fromPlace={person.temple_name}
+              />
+            </div>
+          </details>
+        ) : null}
       </div>
 
       <div className="mt-6 rounded-xl border-2 border-ring bg-card p-5" data-testid="me-edit">

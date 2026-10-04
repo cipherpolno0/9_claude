@@ -1,7 +1,8 @@
 import {
   NAK_THAM_LABEL,
   PALI_LABEL,
-  PERSON_STATUS_LABEL,
+  countsPhansa,
+  personStatusLabel,
   PERSON_TYPE_LABEL,
   ageOf,
   phansaOf,
@@ -22,7 +23,7 @@ export function FactRow({ label, children }: { label: string; children: React.Re
 /** ข้อมูลทั่วไปของบุคคล ใช้ทั้งหน้าประวัติรายบุคคลและหน้า ประวัติของฉัน (วางภายใน <dl>) */
 export function PersonFacts({ person, unitName }: { person: Person; unitName: string }) {
   const monastic = person.person_type === "monastic";
-  const phansa = monastic && person.status === "active" ? phansaOf(person.ordination_date) : null;
+  const phansa = countsPhansa(person) ? phansaOf(person.ordination_date) : null;
   const age = person.status === "deceased" ? null : ageOf(person.birth_date);
 
   return (
@@ -51,7 +52,7 @@ export function PersonFacts({ person, unitName }: { person: Person; unitName: st
       <FactRow label="วัดที่สังกัด">{person.temple_name || "-"}</FactRow>
       <FactRow label="เขตปกครอง">{unitName}</FactRow>
       <FactRow label="เบอร์ติดต่อ">{person.phone || "-"}</FactRow>
-      <FactRow label="สถานะปัจจุบัน">{PERSON_STATUS_LABEL[person.status]}</FactRow>
+      <FactRow label="สถานะปัจจุบัน">{personStatusLabel(person.status, person.person_type)}</FactRow>
     </>
   );
 }

@@ -3,11 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Attachments } from "@/components/attachments";
+import { ErrorText } from "@/components/form";
 import { ProfileEditSummary } from "@/components/profile-edit-summary";
 import { RequestTimeline } from "@/components/request-timeline";
+import { StatusRequestSummary } from "@/components/status-request-summary";
 import { requireWorkspace } from "@/lib/auth/guards";
 import { EVENT_LABEL } from "@/lib/requests/labels";
 import { fetchRequestDetail } from "@/lib/requests/queries";
+import { isNoticeType, isStatusType } from "@/lib/status";
 import { thaiDateTime } from "@/lib/thai";
 
 import { DecisionForm, RequesterActions } from "./request-actions";
@@ -15,7 +18,13 @@ import { DecisionForm, RequesterActions } from "./request-actions";
 export const metadata: Metadata = { title: "รายละเอียดคำขอ" };
 export const dynamic = "force-dynamic";
 
-export default async function RequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function RequestDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await requireWorkspace();
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
@@ -25,6 +34,9 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
 
   const isRequester = request.requester_id === ctx.user.id;
   const detail = typeof request.payload.detail === "string" ? request.payload.detail : "";
+  const statusRequest = isStatusType(request.type_key);
+  const notice = isNoticeType(request.type_key);
+  const uploadFailed = (await searchParams).upload === "failed";
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">
@@ -37,6 +49,23 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
       <p className="mt-1 text-muted-foreground">
         เลขที่ {request.request_no} · หน่วยที่ยื่น: {request.org_unit_name} · ผู้ยื่น: {request.requester_name}
       </p>
+
+      {uploadFailed ? (
+        <div className="mt-4">
+          <ErrorText>บันทึกรายการแล้ว แต่แนบไฟล์ไม่สำเร็จ กรุณาแนบไฟล์อีกครั้งที่หัวข้อ ไฟล์แนบ ด้านล่าง</ErrorText>
+        </div>
+      ) : null}
+
+      {statusRequest ? (
+        <div className="mt-6 rounded-xl border bg-card p-5">
+          <h2 className="mb-2 text-xl font-bold text-primary">{notice ? "รายละเอียดการแจ้ง" : "รายละเอียดคำขอ"}</h2>
+          <StatusRequestSummary
+            typeKey={request.type_key}
+            payload={request.payload}
+            applied={request.status === "approved"}
+          />
+        </div>
+      ) : null}
 
       {request.type_key === "profile_edit" ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
@@ -57,7 +86,7 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
 
       {detail ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
-          <h2 className="text-xl font-bold text-primary">รายละเอียด</h2>
+          <h2 className="text-xl font-bold text-primary">{statusRequest ? "เหตุผล" : "รายละเอียด"}</h2>
           <p className="mt-2 whitespace-pre-wrap">{detail}</p>
         </div>
       ) : null}
@@ -65,15 +94,19 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
       <div className="mt-6 rounded-xl border bg-card p-5">
         <h2 className="text-xl font-bold text-primary">สถานะการพิจารณา</h2>
         <div className="mt-3">
-          <RequestTimeline data={request.timeline} />
+          <RequestTimeline data={request.timeline} approvedLabel={notice ? "รับทราบ" : undefined} />
         </div>
       </div>
 
       {request.canDecide ? (
         <div className="mt-6 rounded-xl border-2 border-ring bg-card p-5">
-          <h2 className="text-xl font-bold text-primary">พิจารณาคำขอ (ขั้นที่ {request.current_step})</h2>
+          <h2 className="text-xl font-bold text-primary">{notice ? "รับทราบการแจ้ง" : `พิจารณาคำขอ (ขั้นที่ ${request.current_step})`}</h2>
           <div className="mt-3">
-            <DecisionForm requestId={request.id} />
+            <DecisionForm
+              requestId={request.id}
+              approveLabel={notice ? "รับทราบ" : undefined}
+              allowReject={!notice}
+            />
           </div>
         </div>
       ) : null}
@@ -89,7 +122,7 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
               status={request.status}
               title={request.title}
               detail={detail}
-              extraPayload={request.type_key === "profile_edit" ? request.payload : undefined}
+              extraPayload={request.type_key === "profile_edit" || statusRequest ? request.payload : undefined}
             />
           </div>
         </div>
@@ -113,7 +146,8 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
         <ul className="mt-3 flex flex-col gap-1" data-testid="request-events">
           {request.events.map((e) => (
             <li key={e.id}>
-              <span className="text-muted-foreground">{thaiDateTime(e.created_at)}</span> · {EVENT_LABEL[e.action] ?? e.action} ·{" "}
+              <span className="text-muted-foreground">{thaiDateTime(e.created_at)}</span> ·{" "}
+              {notice && e.action === "approved" ? "รับทราบ" : (EVENT_LABEL[e.action] ?? e.action)} ·{" "}
               {e.actor_name}
               {e.comment ? ` · ${e.comment}` : ""}
             </li>

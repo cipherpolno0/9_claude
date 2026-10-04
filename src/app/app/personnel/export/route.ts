@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { requireMenu } from "@/lib/auth/guards";
 import { xlsxResponse } from "@/lib/data-table";
-import { PERSON_STATUS_LABEL, PERSON_TYPE_LABEL, phansaOf } from "@/lib/persons";
+import { PERSON_TYPE_LABEL, countsPhansa, personStatusLabel, phansaOf } from "@/lib/persons";
 import { personnelTableParams, queryPersonnel } from "@/lib/persons-server";
 
 /**
@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
       p.org_unit_name,
       p.org_unit_code,
       (p.positions ?? "").replace(/\n/g, ", "),
-      p.person_type === "monastic" && p.status === "active" ? phansaOf(p.ordination_date) : null,
-      p.is_active ? PERSON_STATUS_LABEL[p.status] : "ปิดใช้งาน",
+      countsPhansa(p) ? phansaOf(p.ordination_date) : null,
+      p.is_active ? personStatusLabel(p.status, p.person_type) : "ปิดใช้งาน",
     ]),
   );
 }

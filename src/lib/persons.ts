@@ -4,14 +4,37 @@ export const PERSON_TYPES = ["monastic", "lay"] as const;
 export type PersonType = (typeof PERSON_TYPES)[number];
 export const PERSON_TYPE_LABEL: Record<PersonType, string> = { monastic: "บรรพชิต", lay: "คฤหัสถ์" };
 
-export const PERSON_STATUSES = ["active", "disrobed", "deceased", "moved_out"] as const;
+export const PERSON_STATUSES = [
+  "active",
+  "transfer_pending",
+  "transferred",
+  "resigned",
+  "deceased",
+  "disrobed",
+  "removed_other",
+] as const;
 export type PersonStatus = (typeof PERSON_STATUSES)[number];
+/** ป้ายสถานะแบบไม่ทราบประเภทบุคคล (ใช้กับตัวกรอง) ถ้าทราบประเภทให้ใช้ personStatusLabel */
 export const PERSON_STATUS_LABEL: Record<PersonStatus, string> = {
-  active: "ปกติ",
+  active: "ปฏิบัติหน้าที่",
+  transfer_pending: "อยู่ระหว่างขอย้าย",
+  transferred: "ย้ายแล้ว",
+  resigned: "ลาออก",
+  deceased: "มรณภาพ / ตาย",
   disrobed: "ลาสิกขา",
-  deceased: "มรณภาพ",
-  moved_out: "ย้ายออกนอกเขต",
+  removed_other: "พ้นตำแหน่งด้วยเหตุอื่น",
 };
+
+/** ป้ายสถานะตามประเภทบุคคล: บรรพชิต = มรณภาพ / คฤหัสถ์ = ตาย */
+export function personStatusLabel(status: string, personType: string): string {
+  if (status === "deceased") return personType === "lay" ? "ตาย" : "มรณภาพ";
+  return PERSON_STATUS_LABEL[status as PersonStatus] ?? status;
+}
+
+/** ยังนับพรรษาอยู่หรือไม่ (ไม่นับเมื่อลาสิกขาหรือมรณภาพ) */
+export function countsPhansa(p: { person_type: string; status: string }): boolean {
+  return p.person_type === "monastic" && p.status !== "disrobed" && p.status !== "deceased";
+}
 
 export const NAK_THAM = ["tri", "tho", "ek"] as const;
 export const NAK_THAM_LABEL: Record<string, string> = { tri: "น.ธ.ตรี", tho: "น.ธ.โท", ek: "น.ธ.เอก" };
@@ -277,12 +300,17 @@ const TYPE_BY_TEXT = new Map<string, PersonType>([
   ["คฤหัสถ์", "lay"],
   ["lay", "lay"],
 ]);
-const STATUS_BY_TEXT = new Map<string, PersonStatus>(
-  PERSON_STATUSES.flatMap((s) => [
+const STATUS_BY_TEXT = new Map<string, PersonStatus>([
+  ...PERSON_STATUSES.filter((s) => s !== "transfer_pending").flatMap((s): [string, PersonStatus][] => [
     [PERSON_STATUS_LABEL[s], s],
     [s, s],
   ]),
-);
+  ["มรณภาพ", "deceased"],
+  ["ตาย", "deceased"],
+  // ชื่อสถานะชุดเดิมของบทที่ 5
+  ["ปกติ", "active"],
+  ["ย้ายออกนอกเขต", "transferred"],
+]);
 const NAK_THAM_BY_TEXT = new Map<string, string>([
   ["ตรี", "tri"],
   ["น.ธ.ตรี", "tri"],

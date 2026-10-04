@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "แก้ไขบุคคล" };
 export const dynamic = "force-dynamic";
 
 export default async function EditPersonPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireMenu("/app/personnel");
+  const ctx = await requireMenu("/app/personnel");
   const { id } = await params;
   const person = await fetchPerson(id);
   if (!person) notFound();
@@ -29,7 +29,7 @@ export default async function EditPersonPage({ params }: { params: Promise<{ id:
         </Link>
       </p>
       <h1 className="mt-2 mb-6 text-2xl font-bold text-primary sm:text-3xl">แก้ไขข้อมูลบุคคล</h1>
-      <PersonForm person={person} units={units} />
+      <PersonForm person={person} units={units} isAdmin={ctx.isAdmin} />
     </section>
   );
 }
