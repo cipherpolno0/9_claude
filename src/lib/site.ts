@@ -9,6 +9,7 @@ import {
   Network,
   Settings,
   FlaskConical,
+  GraduationCap,
   History,
   ShieldCheck,
   SlidersHorizontal,
@@ -195,6 +196,13 @@ export const adminMenu: AdminMenuItem[] = [
     href: "/app/admin/settings",
     description: "บทบาทที่บังคับยืนยันตัวตน 2 ขั้น อายุรหัสผ่าน และเกณฑ์ระงับบัญชี",
     icon: SlidersHorizontal,
+    adminOnly: true,
+  },
+  {
+    title: "ประเภทตำแหน่ง จศป.",
+    href: "/app/admin/education-positions",
+    description: "ประเภทตำแหน่งของ จศป. แยกตามแท่ง: แผนกธรรม แผนกบาลี แผนกสามัญ ปริยัตินิเทศก์",
+    icon: GraduationCap,
     adminOnly: true,
   },
   {

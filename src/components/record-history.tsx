@@ -28,6 +28,8 @@ export type HistoryEntry = {
   actor_name: string | null;
   /** ข้อความนำหน้ารายการ เช่น ชื่อตารางหรือชื่อวาระ (ไม่บังคับ) */
   subject?: string;
+  /** ตารางของรายการ (ไม่บังคับ) ใช้เมื่อประวัติรวมหลายตารางและช่องชื่อเดียวกันมีความหมายต่างกัน */
+  table_name?: string;
 };
 
 /**
@@ -42,11 +44,11 @@ export function HistoryList({
 }: {
   logs: HistoryEntry[];
   labels?: Record<string, string>;
-  format?: (field: string, value: unknown) => string | null;
+  format?: (field: string, value: unknown, log: HistoryEntry) => string | null;
   emptyText?: string;
 }) {
   if (logs.length === 0) return <p className="text-muted-foreground">{emptyText}</p>;
-  const text = (field: string, value: unknown) => format?.(field, value) ?? show(value);
+  const text = (field: string, value: unknown, log: HistoryEntry) => format?.(field, value, log) ?? show(value);
 
   return (
     <ul className="flex flex-col gap-2" data-testid="record-history">
@@ -62,7 +64,7 @@ export function HistoryList({
               <ul className="mt-1 list-disc pl-6 text-sm">
                 {changes.map((c) => (
                   <li key={c.field}>
-                    {labels[c.field] ?? <code>{c.field}</code>}: {text(c.field, c.from)} → {text(c.field, c.to)}
+                    {labels[c.field] ?? <code>{c.field}</code>}: {text(c.field, c.from, log)} → {text(c.field, c.to, log)}
                   </li>
                 ))}
               </ul>

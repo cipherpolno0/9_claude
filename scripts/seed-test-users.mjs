@@ -1,4 +1,4 @@
-// สร้างบัญชีทดสอบ 5 บัญชี  *** ใช้กับข้อมูลทดสอบเท่านั้น ***
+// สร้างบัญชีทดสอบ 6 บัญชี  *** ใช้กับข้อมูลทดสอบเท่านั้น ***
 // วิธีรัน: npm run seed:test-users   (ต้องมีไฟล์ .env.local ที่เติม SUPABASE_SECRET_KEY แล้ว
 // และรันข้อมูลทดสอบของบทที่ 2 ไว้แล้ว)
 // รหัสผ่านจะถูกสุ่มใหม่ทุกครั้งที่รัน และแสดงบนจอนี้เท่านั้น
@@ -19,6 +19,7 @@ const ACCOUNTS = [
   { email: "test.secretary.tambon@example.com", first: "(ทดสอบ) เลขาฯ ตำบล", role: "secretary", unit: "TEST-M-R1-P1-D1-S1" },
   { email: "test.chief.amphoe@example.com", first: "(ทดสอบ) เจ้าคณะอำเภอ", role: "chief", unit: "TEST-M-R1-P1-D1" },
   { email: "test.secretary.changwat@example.com", first: "(ทดสอบ) เลขาฯ จังหวัด", role: "secretary", unit: "TEST-M-R1-P1" },
+  { email: "test.jsp@example.com", first: "(ทดสอบ) จศป.", role: "education_staff", unit: "TEST-M-R1-P1-D1-S1" },
   { email: "test.central@example.com", first: "(ทดสอบ) เจ้าหน้าที่ส่วนกลาง", role: "central_staff", unit: null },
   { email: "test.admin@example.com", first: "(ทดสอบ) ผู้ดูแลระบบ", role: "admin", unit: null },
 ];
@@ -83,7 +84,7 @@ for (const account of ACCOUNTS) {
   }
 }
 
-console.log("\nสร้างบัญชีทดสอบแล้ว 5 บัญชี (ทุกบัญชีใช้รหัสผ่านเดียวกัน)\n");
+console.log(`\nสร้างบัญชีทดสอบแล้ว ${ACCOUNTS.length} บัญชี (ทุกบัญชีใช้รหัสผ่านเดียวกัน)\n`);
 for (const a of ACCOUNTS) console.log(`  ${a.email.padEnd(40)} ${a.first}`);
 console.log(`\n  รหัสผ่าน: ${password}\n`);
 console.log("บัญชีเจ้าคณะอำเภอและผู้ดูแลระบบ ต้องตั้งค่ายืนยันตัวตน 2 ขั้นเมื่อเข้าสู่ระบบครั้งแรก");

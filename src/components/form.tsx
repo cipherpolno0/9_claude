@@ -20,11 +20,11 @@ export function Field({
 }: React.ComponentProps<typeof Input> & { label: string; name: string; hint?: string }) {
   return (
     <div className={cn("flex flex-col gap-1", className)}>
-      <Label htmlFor={name}>
+      <Label htmlFor={props.id ?? name}>
         {label}
         {props.required ? <span className="text-destructive"> *</span> : null}
       </Label>
-      <Input id={name} name={name} {...props} />
+      <Input name={name} {...props} id={props.id ?? name} />
       {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
     </div>
   );

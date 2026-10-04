@@ -267,3 +267,82 @@ export async function confirmPersonImport(raw: PersonImportRaw[]): Promise<Actio
     return { ok: false, error: explainError(error) };
   }
 }
+
+// ------------------------------------------------------------------
+// จศป. (หนึ่งแถว = บุคคลหนึ่งรูปหรือคน ในแท่งหนึ่ง ที่สำนักหนึ่ง)
+// ------------------------------------------------------------------
+
+/** เพิ่ม (ช่อง id ว่าง) หรือแก้ไขรายการ จศป. สิทธิ์และกติกาตรวจที่ฐานข้อมูล */
+export async function saveEducationStaff(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = text(formData, "id");
+  const personId = text(formData, "person_id");
+  const track = text(formData, "track");
+  const positionTypeId = text(formData, "position_type_id");
+  const orgUnitId = text(formData, "org_unit_id");
+  const status = text(formData, "status") || "active";
+  const startedOn = text(formData, "started_on");
+  const endedOn = status === "ended" ? text(formData, "ended_on") : "";
+
+  if (!isUuid(personId)) return { error: "ไม่พบบุคคลนี้" };
+  if (!["dhamma", "pali", "general", "supervisor"].includes(track)) return { error: "กรุณาเลือกแท่ง" };
+  if (!isUuid(positionTypeId)) return { error: "กรุณาเลือกประเภทตำแหน่ง" };
+  if (!isUuid(orgUnitId)) return { error: "กรุณาเลือกเขตที่รับผิดชอบ" };
+  if (!["active", "suspended", "ended"].includes(status)) return { error: "สถานะไม่ถูกต้อง" };
+  if (text(formData, "started_on_incomplete")) return { error: "วันที่เริ่มยังกรอกไม่ครบหรือไม่ใช่วันที่ที่มีจริง" };
+  if (status === "ended" && text(formData, "ended_on_incomplete")) {
+    return { error: "วันที่พ้นหน้าที่ยังกรอกไม่ครบหรือไม่ใช่วันที่ที่มีจริง" };
+  }
+  if (startedOn && endedOn && endedOn < startedOn) return { error: "วันที่พ้นหน้าที่ต้องไม่อยู่ก่อนวันที่เริ่ม" };
+
+  const row = {
+    position_type_id: positionTypeId,
+    school_name: text(formData, "school_name"),
+    school_type: text(formData, "school_type"),
+    org_unit_id: orgUnitId,
+    started_on: startedOn || null,
+    order_no: text(formData, "order_no"),
+    subjects: text(formData, "subjects"),
+    status,
+    ended_on: endedOn || null,
+    note: text(formData, "note"),
+  };
+
+  const supabase = await createClient();
+  const denied = "ท่านไม่มีสิทธิ์บันทึก จศป. ในเขตปกครองนี้ (บันทึกได้เฉพาะเลขานุการของเขตนั้นหรือหน่วยเหนือ)";
+  if (id) {
+    if (!isUuid(id)) return { error: "ไม่พบรายการนี้" };
+    const { data, error } = await supabase.from("education_staff").update(row).eq("id", id).eq("is_active", true).select("id");
+    if (error) return { error: error.code === "42501" ? denied : explainError(error) };
+    if (!data?.length) return { error: "ท่านไม่มีสิทธิ์แก้ไขรายการนี้" };
+  } else {
+    const { error } = await supabase.from("education_staff").insert({ ...row, person_id: personId, track });
+    if (error) return { error: error.code === "42501" ? denied : explainError(error) };
+  }
+  revalidatePath(`${LIST}/education`);
+  revalidatePath(`${LIST}/${personId}`);
+  return { message: id ? "บันทึกการแก้ไขแล้ว" : "บันทึกแล้ว แนบไฟล์คำสั่งแต่งตั้งได้ที่รายการด้านล่าง" };
+}
+
+/** ยกเลิกรายการ จศป. ที่บันทึกผิด (ปิดใช้งาน ไม่ลบจริง) */
+export async function cancelEducationStaff(id: string, personId: string): Promise<ActionResult> {
+  if (!isUuid(id)) return { ok: false, error: "ไม่พบรายการนี้" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("education_staff").update({ is_active: false }).eq("id", id).select("id");
+  if (error) return { ok: false, error: explainError(error) };
+  if (!data?.length) return { ok: false, error: "ท่านไม่มีสิทธิ์แก้ไขรายการนี้" };
+  revalidatePath(`${LIST}/education`);
+  revalidatePath(`${LIST}/${personId}`);
+  return { ok: true, message: "ยกเลิกรายการแล้ว" };
+}
+
+/** ผูกหรือเลิกผูกบัญชีผู้ใช้กับบุคคล (อีเมลว่าง = เลิกผูก) เพื่อให้เจ้าของประวัติเปิดหน้า ประวัติของฉัน ได้ */
+export async function linkPersonUser(_prev: FormState, formData: FormData): Promise<FormState> {
+  const personId = text(formData, "person_id");
+  const email = text(formData, "email");
+  if (!isUuid(personId)) return { error: "ไม่พบบุคคลนี้" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("link_person_user", { p_person_id: personId, p_email: email });
+  if (error) return { error: explainError(error) };
+  revalidatePath(`${LIST}/${personId}`);
+  return { message: email ? "ผูกบัญชีแล้ว ระบบแจ้งเจ้าของบัญชีให้ทราบแล้ว" : "เลิกผูกบัญชีแล้ว" };
+}

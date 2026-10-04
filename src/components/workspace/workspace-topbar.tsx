@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CircleUserRound, LogOut, Menu, Search } from "lucide-react";
+import { CircleUserRound, IdCard, LogOut, Menu, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,12 @@ export function WorkspaceTopbar({ access, userName }: { access: NavAccess; userN
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">
         <NotificationBell />
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/app/me" aria-label="ประวัติของฉัน">
+            <IdCard aria-hidden />
+            <span className="hidden xl:inline">ประวัติของฉัน</span>
+          </Link>
+        </Button>
         <Link
           href="/account"
           className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent"

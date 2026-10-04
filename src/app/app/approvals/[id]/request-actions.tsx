@@ -67,11 +67,14 @@ export function RequesterActions({
   status,
   title,
   detail,
+  extraPayload,
 }: {
   requestId: string;
   status: "pending" | "returned";
   title: string;
   detail: string;
+  /** ข้อมูลเฉพาะของชนิดคำขอที่ต้องคงไว้เมื่อส่งใหม่ (เช่น รายการที่ขอแก้ไขของคำขอแก้ไขประวัติ) */
+  extraPayload?: Record<string, unknown>;
 }) {
   const router = useRouter();
   const [newTitle, setNewTitle] = useState(title);
@@ -117,7 +120,7 @@ export function RequesterActions({
         {status === "returned" ? (
           <Button
             disabled={pending}
-            onClick={() => run(() => resubmitRequest({ requestId, title: newTitle, payload: { detail: newDetail } }))}
+            onClick={() => run(() => resubmitRequest({ requestId, title: newTitle, payload: { ...extraPayload, detail: newDetail } }))}
           >
             ส่งคำขอใหม่
           </Button>

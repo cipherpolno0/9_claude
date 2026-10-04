@@ -42,7 +42,7 @@ export const END_REASON_LABEL: Record<EndReason, string> = {
 
 /** คอลัมน์ของ persons ที่อ่านผ่าน API ได้ (คอลัมน์ที่เข้ารหัสไม่เปิดให้อ่าน) */
 export const PERSON_COLUMNS =
-  "id, person_type, title, first_name, monastic_name, last_name, birth_date, national_id_last4, ordination_date, nak_tham, pali_grade, general_education, temple_name, org_unit_id, phone, status, note, is_active, created_at, updated_at";
+  "id, person_type, title, first_name, monastic_name, last_name, birth_date, national_id_last4, ordination_date, nak_tham, pali_grade, general_education, temple_name, org_unit_id, phone, status, note, is_active, user_id, created_at, updated_at";
 
 export type Person = {
   id: string;
@@ -63,6 +63,7 @@ export type Person = {
   status: PersonStatus;
   note: string;
   is_active: boolean;
+  user_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -177,7 +178,30 @@ export const PERSON_FIELD_LABEL: Record<string, string> = {
   end_reason: "เหตุที่พ้น",
   end_note: "รายละเอียดเหตุที่พ้น",
   person_id: "บุคคล",
+  user_id: "บัญชีผู้ใช้ที่ผูก",
+  track: "แท่ง",
+  position_type_id: "ประเภทตำแหน่ง",
+  school_name: "สำนักที่ปฏิบัติหน้าที่",
+  school_type: "ประเภทสำนัก",
+  started_on: "วันที่เริ่ม",
+  subjects: "วิชาที่สอน",
 };
+
+/** ช่องที่เจ้าของประวัติขอแก้ไขได้ผ่านคำขอแก้ไขประวัติ (ต้องตรงกับฟังก์ชัน clean_profile_changes ในฐานข้อมูล) */
+export const PROFILE_EDIT_FIELDS = [
+  "title",
+  "first_name",
+  "monastic_name",
+  "last_name",
+  "birth_date",
+  "ordination_date",
+  "nak_tham",
+  "pali_grade",
+  "general_education",
+  "temple_name",
+  "phone",
+] as const;
+export type ProfileEditField = (typeof PROFILE_EDIT_FIELDS)[number];
 
 // ------------------------------------------------------------------
 // วันที่: แปลงระหว่างข้อความ วว/ดด/ปปปป (พ.ศ.) กับ YYYY-MM-DD

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { UserPlus } from "lucide-react";
+import { GraduationCap, UserPlus } from "lucide-react";
 
 import { DataTable, type DataTableRow } from "@/components/data-table";
 import { ErrorText } from "@/components/form";
@@ -63,8 +63,15 @@ export default async function PersonnelPage({
             รายชื่อบุคคลในเขตที่ท่านดูแล กดที่ชื่อเพื่อดูประวัติ ตำแหน่ง และเอกสารแนบ
           </p>
         </div>
-        {canEdit ? (
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/app/personnel/education">
+              <GraduationCap aria-hidden />
+              ทะเบียน จศป.
+            </Link>
+          </Button>
+          {canEdit ? (
+            <>
             <Button asChild variant="outline">
               <a href="/app/personnel/template" download>ดาวน์โหลดแม่แบบ Excel</a>
             </Button>
@@ -75,8 +82,9 @@ export default async function PersonnelPage({
                 เพิ่มบุคคล
               </Link>
             </Button>
-          </div>
-        ) : null}
+            </>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-6 flex flex-col gap-4">
