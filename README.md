@@ -9,8 +9,8 @@
 2. เปิดโปรแกรม Terminal (Windows: PowerShell) แล้วเข้าโฟลเดอร์โครงการนี้
 3. พิมพ์ `npm install` แล้วรอจนเสร็จ (ทำครั้งแรกครั้งเดียว)
 4. พิมพ์ `npm run dev`
-5. เปิดเบราว์เซอร์ไปที่ http://localhost:3001
-   (โครงการนี้กำหนดให้ใช้พอร์ต 3001 เสมอ ถ้าขึ้นว่าพอร์ตถูกใช้อยู่ แปลว่ามีหน้าต่าง `npm run dev` เปิดค้างไว้อีกหน้าต่างหนึ่ง ให้ปิดหน้าต่างนั้นก่อน)
+5. เปิดเบราว์เซอร์ไปที่ http://localhost:3002
+   (โครงการนี้กำหนดให้ใช้พอร์ต 3002 เสมอ ถ้าขึ้นว่าพอร์ตถูกใช้อยู่ แปลว่ามีหน้าต่าง `npm run dev` เปิดค้างไว้อีกหน้าต่างหนึ่ง ให้ปิดหน้าต่างนั้นก่อน)
 
 ## เชื่อมฐานข้อมูล Supabase
 
@@ -23,12 +23,12 @@ migration ของบทที่ 2–3 และข้อมูลทดสอ
 2. เติมค่า `SUPABASE_SECRET_KEY` จากหน้า Project Settings > API Keys > Secret keys ของ Supabase
    - ห้ามส่งค่านี้ให้ผู้อื่น และห้ามนำไฟล์ `.env.local` ขึ้น GitHub
 3. ใน Supabase เปิด Authentication > URL Configuration แล้วตั้ง
-   - Site URL: `http://localhost:3001`
-   - Redirect URLs: เพิ่ม `http://localhost:3001/**`
+   - Site URL: `http://localhost:3002`
+   - Redirect URLs: เพิ่ม `http://localhost:3002/**`
    (ใช้กับลิงก์ตั้งรหัสผ่านใหม่ในอีเมล เมื่อขึ้นเว็บจริงให้เพิ่มที่อยู่เว็บจริงด้วย)
 4. พิมพ์ `npm install` แล้ว `npm run seed:test-users` เพื่อสร้างบัญชีทดสอบ 5 บัญชี
    รหัสผ่านจะแสดงบนจอ ให้จดไว้ (รันซ้ำได้ ระบบจะตั้งรหัสผ่านใหม่)
-5. พิมพ์ `npm run dev` แล้วเปิด http://localhost:3001/login
+5. พิมพ์ `npm run dev` แล้วเปิด http://localhost:3002/login
 
 ถ้าย้ายไปใช้โครงการ Supabase ใหม่: รันไฟล์ใน `supabase/migrations/` ทีละไฟล์ตามลำดับเลขหน้าชื่อไฟล์
 ใน SQL Editor แล้วรัน `supabase/seed_test_data.sql` ถ้าต้องการข้อมูลทดสอบ
