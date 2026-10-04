@@ -14,9 +14,9 @@ import {
 } from "@/lib/persons";
 import { createClient } from "@/lib/supabase/server";
 
-/** บทบาทที่เพิ่มและแก้ไขทะเบียนบุคคลได้ (สิทธิ์จริงตรวจที่ฐานข้อมูลตามเขตปกครองอีกชั้น) */
+/** ผู้ใช้มีบทบาทที่เพิ่มและแก้ไขทะเบียนบุคคลได้ (ตามค่าตั้ง สิทธิ์ตามบทบาท; สิทธิ์จริงตรวจที่ฐานข้อมูลตามเขตปกครองอีกชั้น) */
 export function isPersonnelEditor(ctx: AuthContext): boolean {
-  return ctx.roles.some((r) => r.effective && (r.role_key === "admin" || r.role_key === "secretary"));
+  return ctx.canEditPersonnel;
 }
 
 export async function fetchPositionTypes(): Promise<PositionType[]> {

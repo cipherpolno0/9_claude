@@ -42,7 +42,7 @@
 - สิทธิ์ (เพิ่มในบทที่ 3): ทุกหน้าใน /app ต้องเรียกด่านตรวจจาก src/lib/auth/guards.ts เป็นบรรทัดแรก (requireMenu, requireAdmin, requireAccountManager หรือ requireWorkspace) เพราะ layout ไม่ถูกเรียกซ้ำเมื่อเปลี่ยนหน้า
 - อ่านเขียนข้อมูลด้วย createClient() จาก src/lib/supabase/server.ts (ทำงานในนามผู้ใช้ อยู่ใต้ RLS) ห้ามใช้ createAdminClient() (secret key) ยกเว้นงานที่ทำในนามผู้ใช้ไม่ได้ และต้องเขียนเหตุผลกำกับ
 - RLS ของตารางใหม่ให้ใช้ฟังก์ชัน can_access(org_unit_id) และ has_role('ชื่อบทบาท') การเขียนที่มีกติกาซับซ้อนให้ทำเป็นฟังก์ชันฐานข้อมูลแบบ security definer ที่ตรวจสิทธิ์ภายใน และ revoke execute จาก public, anon
-- บทบาท (roles.key): chief, deputy_chief, secretary, central_staff, admin, education_staff, school_officer, finance_officer, supplies_officer, saraban_officer, quiz_manager, learner เมนูต่อบทบาทอยู่ที่ ROLE_MENUS ใน src/lib/auth/config.ts
+- บทบาท (roles.key): chief, deputy_chief, secretary, central_staff, admin, education_staff, school_officer, finance_officer, supplies_officer, saraban_officer, quiz_manager, learner เมนูต่อบทบาทอยู่ในตาราง role_menus (ดูหัวข้อ สิทธิ์ตามบทบาท ด้านล่าง)
 - ฟอร์มใช้ชิ้นส่วนจาก src/components/form.tsx (useServerForm, Field, SubmitButton) ข้อความผิดพลาดแปลงด้วย explainError จาก src/lib/errors.ts ตัวเลือกเขตปกครองใช้ src/components/org-unit-picker.tsx
 - เมื่อมีตัวเชื่อมต่อ Supabase ในการสนทนา ให้รัน migration ด้วย apply_migration แล้วตรวจ get_advisors (security) ทุกครั้ง และเก็บไฟล์ SQL เดียวกันไว้ใน supabase/migrations/
 - ชิ้นส่วนกลาง (เพิ่มในบทที่ 4) ต้องใช้ซ้ำ ห้ามสร้างใหม่: ตาราง = DataTable (src/components/data-table.tsx) คู่กับ parseTableParams และ xlsxResponse (src/lib/data-table.ts); เขตปกครอง = OrgUnitPicker คู่กับ fetchAccessibleUnits(); ไฟล์แนบ = <Attachments entityTable entityId orgUnitId />; แจ้งเตือน = ฟังก์ชันฐานข้อมูล notify_user() (เรียกจากฟังก์ชัน security definer เท่านั้น); ประวัติ = <RecordHistory table rowId />; หน้าพิมพ์ = PrintPage กับ <D> และ useDigits(); วันที่ = thaiDate, thaiDateTime (src/lib/thai.ts)
@@ -50,7 +50,7 @@
 - เลขที่คำขอ: [code]-[ปี พ.ศ.]-[ลำดับ 4 หลัก] ออกโดย submit_request เท่านั้น
 - ชื่อบุคคลที่เกี่ยวกับคำขอให้อ่านผ่าน request_people(request_id) ห้ามเปิด RLS ของ profiles เพิ่ม (กันอีเมลและเบอร์ติดต่อรั่ว)
 - ตาราง audit_logs อ่านได้เฉพาะผู้ดูแลระบบ ตารางใหม่ทุกตารางที่เก็บข้อมูลงานต้องผูก trigger audit_row_change()
-- ทะเบียนบุคคล (เพิ่มในบทที่ 5): ตาราง persons, position_types, appointments  สิทธิ์ใช้ can_view_personnel(org_unit_id) / can_edit_personnel(org_unit_id) / can_view_person(person_id) (ดู = ผู้ดูแลระบบ ส่วนกลาง เจ้าคณะ รองเจ้าคณะ เลขานุการ; แก้ไข = เลขานุการในเขตและผู้ดูแลระบบ) ห้ามใช้ can_access กับข้อมูลบุคคล
+- ทะเบียนบุคคล (เพิ่มในบทที่ 5): ตาราง persons, position_types, appointments  สิทธิ์ใช้ can_view_personnel(org_unit_id) / can_edit_personnel(org_unit_id) / can_view_person(person_id) (ขอบเขตตามค่าตั้งของแต่ละบทบาท ดูหัวข้อ สิทธิ์ตามบทบาท) ห้ามใช้ can_access กับข้อมูลบุคคล
 - persons เขียนผ่านฟังก์ชัน save_person / set_person_active / import_persons เท่านั้น อ่านต้องระบุคอลัมน์ด้วย PERSON_COLUMNS (src/lib/persons.ts) ห้าม select * เพราะคอลัมน์ national_id_enc และ national_id_hash ไม่เปิดให้อ่าน
 - เลขประจำตัวประชาชน: เข้ารหัสด้วย pgcrypto กุญแจอยู่ใน Supabase Vault ชื่อ national_id_key (ห้ามลบหรือเปลี่ยน) หน้าเว็บ ไฟล์ส่งออก และประวัติการแก้ไข แสดงได้เฉพาะ 4 ตัวท้าย ยังไม่มีฟังก์ชันถอดรหัสให้เรียกผ่าน API
 - appointments: หนึ่งแถว = หนึ่งวาระ ห้ามแก้บุคคล ตำแหน่ง หรือหน่วยของแถวเดิม พ้นตำแหน่งให้ใส่ ended_on + end_reason บันทึกผิดให้ปิด is_active  กติกาจำนวนต่อหน่วยอยู่ใน trigger appointments_check และ position_types.max_per_unit (ว่าง = ไม่จำกัด แก้ที่หน้า บทบาทและค่าตั้ง)
@@ -73,6 +73,9 @@
 - OrgUnitPicker มี autoSelect (ค่าเริ่มต้น true) ให้ปิดเมื่อผู้ใช้ต้องตั้งใจเลือกหน่วยเอง เช่น หน่วยปลายทางของคำขอย้าย รายการเขตปกครองทั้งนิกายใช้ fetchUnitsOfSect() (src/lib/status-server.ts)
 - alter table ... drop constraint ผ่าน apply_migration ได้ตามปกติ (ที่เคยค้างคือ drop policy)
 - ช่องของ DataTable (cells) ที่เป็น JSX ต้องใส่ key ทุกตัว และห้ามใช้ <>...</> (ใส่ key ไม่ได้) ให้ใช้ <div key="..."> แทน มิฉะนั้นโหมด npm run dev จะขึ้นคำเตือน Each child in a list should have a unique "key" prop
+- สิทธิ์ตามบทบาท (เพิ่มก่อนบทที่ 8): ผู้ดูแลระบบตั้งเองได้ที่ /app/admin/permissions  เมนู = ตาราง role_menus (role_key, menu_href, enabled); ขอบเขตทะเบียนบุคคล = roles.personnel_view / roles.personnel_edit ค่า none ไม่ได้ / own เฉพาะหน่วยตน / subtree หน่วยตนและใต้สังกัด / all ทุกเขต (แก้ไขกว้างกว่าดูไม่ได้ ผู้ดูแลระบบได้เต็มเสมอ บังคับด้วย check constraint)
+- ห้ามเขียนชื่อบทบาทตายตัวเพื่อตัดสินสิทธิ์ของทะเบียนบุคคล ทั้งในฐานข้อมูลและหน้าเว็บ ให้ใช้ can_view_personnel / can_edit_personnel / can_edit_any_personnel() และ ctx.canEditPersonnel, ctx.canViewAllPersonnel (src/lib/auth/session.ts) ระบบใหม่ที่ต้องการขอบเขตแบบเดียวกันให้เพิ่มคอลัมน์ขอบเขตของตนใน roles และเพิ่มช่องในหน้า สิทธิ์ตามบทบาท
+- เมนูใหม่ของพื้นที่ทำงานต้องเพิ่มแถวใน role_menus ให้ครบทุกบทบาทด้วย migration (หน้า สิทธิ์ตามบทบาท อ่านรายการเมนูจาก workspaceMenu ใน src/lib/site.ts)
 - เครื่องของผู้สั่งงานใช้พอร์ต 3002 (กำหนดใน package.json: npm run dev) ที่อยู่ทดสอบคือ http://localhost:3002 และต้องตรงกับ URL Configuration ใน Supabase
 
 @AGENTS.md

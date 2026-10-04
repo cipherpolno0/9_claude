@@ -1,0 +1,171 @@
+"use client";
+
+import { useState, useTransition } from "react";
+
+import { ErrorText, InfoText } from "@/components/form";
+import { PERSONNEL_SCOPES, PERSONNEL_SCOPE_LABEL, scopeRank, type PersonnelScope } from "@/lib/auth/config";
+
+import { setRoleMenu, setRolePersonnelScope } from "./actions";
+
+export type RoleRow = {
+  key: string;
+  name: string;
+  requires_org_unit: boolean;
+  personnel_view: PersonnelScope;
+  personnel_edit: PersonnelScope;
+};
+export type MenuRow = { role_key: string; menu_href: string; enabled: boolean };
+
+const selectClass =
+  "h-11 w-full rounded-md border border-input bg-background px-3 text-base outline-none focus-visible:ring-[3px] focus-visible:ring-ring/60 disabled:opacity-60";
+
+export function PermissionsManager({
+  roles,
+  menus,
+  menuItems,
+}: {
+  roles: RoleRow[];
+  menus: MenuRow[];
+  menuItems: { href: string; title: string }[];
+}) {
+  const [enabled, setEnabled] = useState(() =>
+    Object.fromEntries(menus.map((m) => [`${m.role_key}|${m.menu_href}`, m.enabled])),
+  );
+  const [scopes, setScopes] = useState(() =>
+    Object.fromEntries(roles.map((r) => [r.key, { view: r.personnel_view, edit: r.personnel_edit }])),
+  );
+  const [flash, setFlash] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const toggleMenu = (role: RoleRow, href: string, value: boolean) => {
+    const id = `${role.key}|${href}`;
+    setEnabled((s) => ({ ...s, [id]: value }));
+    startTransition(async () => {
+      setError(null);
+      setFlash(null);
+      const result = await setRoleMenu(role.key, href, value);
+      if (result.ok) setFlash(`บันทึกแล้ว: ${role.name}`);
+      else {
+        setEnabled((s) => ({ ...s, [id]: !value }));
+        setError(result.error);
+      }
+    });
+  };
+
+  const changeScope = (role: RoleRow, field: "view" | "edit", value: PersonnelScope) => {
+    const before = scopes[role.key];
+    const next = { ...before, [field]: value };
+    // สิทธิ์แก้ไขกว้างกว่าสิทธิ์ดูไม่ได้: ลดสิทธิ์ดู = ลดสิทธิ์แก้ไขตาม, เพิ่มสิทธิ์แก้ไข = เพิ่มสิทธิ์ดูตาม
+    if (scopeRank(next.edit) > scopeRank(next.view)) {
+      if (field === "view") next.edit = next.view;
+      else next.view = next.edit;
+    }
+    setScopes((s) => ({ ...s, [role.key]: next }));
+    startTransition(async () => {
+      setError(null);
+      setFlash(null);
+      const result = await setRolePersonnelScope(role.key, next.view, next.edit);
+      if (result.ok) setFlash(`บันทึกแล้ว: ${role.name}`);
+      else {
+        setScopes((s) => ({ ...s, [role.key]: before }));
+        setError(result.error);
+      }
+    });
+  };
+
+  return (
+    <div className="mt-6 flex flex-col gap-5">
+      <div className="rounded-xl border bg-secondary/50 p-4 text-sm leading-relaxed">
+        <p className="font-semibold">หลักที่ระบบบังคับเสมอ</p>
+        <ul className="mt-1 list-disc pl-5">
+          <li>ผู้ดูแลระบบเห็นทุกเมนู และดู แก้ไขทะเบียนบุคคลได้ทุกเขต (แก้ไม่ได้)</li>
+          <li>ทุกคนเห็นแดชบอร์ด และเห็นประวัติของตนเองเสมอ</li>
+          <li>สิทธิ์แก้ไขกว้างกว่าสิทธิ์ดูไม่ได้ และไม่มีบทบาทใดเห็นข้ามสายการปกครอง ยกเว้นเลือก “ทุกเขต”</li>
+          <li>ขอบเขตทะเบียนบุคคลใช้กับ ข้อมูลบุคคล ตำแหน่งปกครอง ทะเบียน จศป. และคำขอเปลี่ยนสถานะ</li>
+        </ul>
+      </div>
+
+      <div aria-live="polite" className="min-h-6">
+        {flash ? <InfoText>{flash}</InfoText> : null}
+        <ErrorText>{error}</ErrorText>
+      </div>
+
+      {roles.map((role) => {
+        const locked = role.key === "admin";
+        const scope = scopes[role.key];
+        // บทบาทที่ไม่ผูกกับเขตปกครองไม่มี "หน่วยตน" จึงเลือกได้เพียง ไม่ได้ หรือ ทุกเขต
+        const options = PERSONNEL_SCOPES.filter(
+          (s) => role.requires_org_unit || s === "none" || s === "all" || s === scope.view || s === scope.edit,
+        );
+        return (
+          <fieldset key={role.key} className="rounded-xl border bg-card p-5" data-role={role.key}>
+            <legend className="px-1 text-xl font-bold text-primary">{role.name}</legend>
+            <p className="text-sm text-muted-foreground">
+              {role.requires_org_unit ? "ผูกกับเขตปกครอง" : "ไม่ผูกกับเขตปกครอง"}
+              {locked ? " · สิทธิ์เต็มเสมอ แก้ไขไม่ได้" : ""}
+            </p>
+
+            <p className="mt-4 font-semibold">เมนูที่ใช้ได้</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {menuItems.map((m) => (
+                <label key={m.href} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="size-5 shrink-0 accent-[var(--primary)]"
+                    checked={locked || (enabled[`${role.key}|${m.href}`] ?? false)}
+                    disabled={pending || locked}
+                    onChange={(e) => toggleMenu(role, m.href, e.target.checked)}
+                    aria-label={`${role.name}: ${m.title}`}
+                  />
+                  {m.title}
+                </label>
+              ))}
+            </div>
+
+            <p className="mt-5 font-semibold">ทะเบียนบุคคล</p>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1">
+                <span>ดูได้</span>
+                <select
+                  className={selectClass}
+                  value={scope.view}
+                  disabled={pending || locked}
+                  onChange={(e) => changeScope(role, "view", e.target.value as PersonnelScope)}
+                  aria-label={`${role.name}: ดูทะเบียนบุคคล`}
+                >
+                  {options.map((s) => (
+                    <option key={s} value={s}>
+                      {PERSONNEL_SCOPE_LABEL[s]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span>เพิ่มและแก้ไขได้</span>
+                <select
+                  className={selectClass}
+                  value={scope.edit}
+                  disabled={pending || locked}
+                  onChange={(e) => changeScope(role, "edit", e.target.value as PersonnelScope)}
+                  aria-label={`${role.name}: แก้ไขทะเบียนบุคคล`}
+                >
+                  {options.map((s) => (
+                    <option key={s} value={s}>
+                      {PERSONNEL_SCOPE_LABEL[s]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {scope.view !== "none" && !locked && !(enabled[`${role.key}|/app/personnel`] ?? false) ? (
+              <p className="mt-2 text-sm text-destructive">
+                บทบาทนี้มีสิทธิ์ดูทะเบียนบุคคล แต่ยังไม่ได้เปิดเมนู บุคลากร จึงเข้าหน้าทะเบียนไม่ได้
+              </p>
+            ) : null}
+          </fieldset>
+        );
+      })}
+    </div>
+  );
+}

@@ -11,6 +11,7 @@ import {
   FlaskConical,
   GraduationCap,
   History,
+  KeyRound,
   ShieldCheck,
   SlidersHorizontal,
   UserCog,
@@ -196,6 +197,13 @@ export const adminMenu: AdminMenuItem[] = [
     href: "/app/admin/settings",
     description: "บทบาทที่บังคับยืนยันตัวตน 2 ขั้น อายุรหัสผ่าน และเกณฑ์ระงับบัญชี",
     icon: SlidersHorizontal,
+    adminOnly: true,
+  },
+  {
+    title: "สิทธิ์ตามบทบาท",
+    href: "/app/admin/permissions",
+    description: "กำหนดว่าแต่ละบทบาทใช้เมนูใดได้ และดูหรือแก้ไขทะเบียนบุคคลได้กว้างเพียงใด",
+    icon: KeyRound,
     adminOnly: true,
   },
   {

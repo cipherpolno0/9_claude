@@ -134,7 +134,7 @@ export async function addAppointment(_prev: FormState, formData: FormData): Prom
     return {
       error:
         error.code === "42501"
-          ? "ท่านไม่มีสิทธิ์บันทึกตำแหน่งในเขตปกครองนี้ (บันทึกได้เฉพาะเลขานุการของเขตนั้นหรือหน่วยเหนือ)"
+          ? "ท่านไม่มีสิทธิ์บันทึกตำแหน่งในเขตปกครองนี้ (บทบาทของท่านไม่มีสิทธิ์แก้ไขทะเบียนบุคคลของเขตนี้)"
           : explainError(error),
     };
   }
@@ -310,7 +310,7 @@ export async function saveEducationStaff(_prev: FormState, formData: FormData): 
   };
 
   const supabase = await createClient();
-  const denied = "ท่านไม่มีสิทธิ์บันทึก จศป. ในเขตปกครองนี้ (บันทึกได้เฉพาะเลขานุการของเขตนั้นหรือหน่วยเหนือ)";
+  const denied = "ท่านไม่มีสิทธิ์บันทึก จศป. ในเขตปกครองนี้ (บทบาทของท่านไม่มีสิทธิ์แก้ไขทะเบียนบุคคลของเขตนี้)";
   if (id) {
     if (!isUuid(id)) return { error: "ไม่พบรายการนี้" };
     const { data, error } = await supabase.from("education_staff").update(row).eq("id", id).eq("is_active", true).select("id");

@@ -4,7 +4,7 @@ import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
 
-import { ACCOUNT_MANAGER_ROLES, ROLE_MENUS } from "./config";
+import { ACCOUNT_MANAGER_ROLES, type PersonnelScope } from "./config";
 
 export type Profile = {
   id: string;
@@ -42,12 +42,14 @@ export const getAuthContext = cache(async () => {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [profileRes, rolesRes, aalRes, settingsRes, factorsRes] = await Promise.all([
+  const [profileRes, rolesRes, aalRes, settingsRes, factorsRes, menusRes, scopesRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
     supabase.rpc("my_role_rows"),
     supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
     supabase.from("app_settings").select("key, value_int"),
     supabase.auth.mfa.listFactors(),
+    supabase.from("role_menus").select("role_key, menu_href").eq("enabled", true),
+    supabase.from("roles").select("key, personnel_view, personnel_edit"),
   ]);
 
   const profile = (profileRes.data as Profile | null) ?? null;
@@ -67,13 +69,21 @@ export const getAuthContext = cache(async () => {
   const roleKeys = roles.map((r) => r.role_key);
   const effectiveKeys = roles.filter((r) => r.effective).map((r) => r.role_key);
 
+  // เมนูและขอบเขตทะเบียนบุคคลอ่านจากค่าตั้งของผู้ดูแลระบบ (หน้า สิทธิ์ตามบทบาท)
   const allowedMenus = new Set<string>(["/app"]);
-  let allMenus = false;
-  for (const key of roleKeys) {
-    const menus = ROLE_MENUS[key];
-    if (menus === "*") allMenus = true;
-    else menus?.forEach((m) => allowedMenus.add(m));
+  for (const row of (menusRes.data as { role_key: string; menu_href: string }[] | null) ?? []) {
+    if (roleKeys.includes(row.role_key)) allowedMenus.add(row.menu_href);
   }
+  const allMenus = roleKeys.includes("admin");
+
+  type ScopeRow = { key: string; personnel_view: PersonnelScope; personnel_edit: PersonnelScope };
+  const scopes = new Map(((scopesRes.data as ScopeRow[] | null) ?? []).map((r) => [r.key, r]));
+  // มีสิทธิ์แก้ไขทะเบียนบุคคลอย่างน้อยหนึ่งเขต (สิทธิ์จริงตรวจที่ฐานข้อมูลตามเขตปกครองอีกชั้น)
+  const canEditPersonnel = roles.some((r) => {
+    const edit = scopes.get(r.role_key)?.personnel_edit ?? "none";
+    return r.effective && (edit === "all" || (edit !== "none" && r.org_unit_id !== null));
+  });
+  const canViewAllPersonnel = roles.some((r) => r.effective && scopes.get(r.role_key)?.personnel_view === "all");
 
   return {
     user,
@@ -91,6 +101,8 @@ export const getAuthContext = cache(async () => {
     passwordWarn: passwordDaysLeft > 0 && passwordDaysLeft <= warnDays,
     allMenus,
     allowedMenus: [...allowedMenus],
+    canEditPersonnel,
+    canViewAllPersonnel,
     settings,
   };
 });

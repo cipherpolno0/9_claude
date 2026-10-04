@@ -42,23 +42,22 @@ export const STATUS_LABEL: Record<string, string> = {
 };
 
 /**
- * เมนูพื้นที่ทำงานที่แต่ละบทบาทเห็น (แก้ที่นี่ที่เดียว)
- * "*" = เห็นทุกเมนู  ทุกบทบาทเห็นแดชบอร์ด (/app) เสมอ
+ * เมนูพื้นที่ทำงานที่แต่ละบทบาทใช้ได้ และขอบเขตการดู/แก้ไขทะเบียนบุคคล
+ * เก็บในฐานข้อมูล (ตาราง role_menus และ roles.personnel_view / personnel_edit)
+ * ผู้ดูแลระบบแก้ได้ที่หน้า ผู้ดูแลระบบ > สิทธิ์ตามบทบาท
+ * ทุกบทบาทเห็นแดชบอร์ด (/app) เสมอ และผู้ดูแลระบบเห็นทุกเมนูเสมอ
  */
-export const ROLE_MENUS: Record<string, string[] | "*"> = {
-  admin: "*",
-  central_staff: "*",
-  chief: ["/app/personnel", "/app/places", "/app/requests", "/app/exams", "/app/docs", "/app/budget", "/app/assets"],
-  deputy_chief: ["/app/personnel", "/app/places", "/app/requests", "/app/exams", "/app/docs", "/app/budget", "/app/assets"],
-  secretary: ["/app/personnel", "/app/places", "/app/requests", "/app/exams", "/app/docs", "/app/budget", "/app/assets"],
-  education_staff: ["/app/personnel", "/app/places", "/app/exams", "/app/docs"],
-  school_officer: ["/app/places", "/app/requests", "/app/exams"],
-  finance_officer: ["/app/budget", "/app/docs"],
-  supplies_officer: ["/app/assets", "/app/docs"],
-  saraban_officer: ["/app/docs"],
-  quiz_manager: ["/app/quiz"],
-  learner: ["/app/quiz"],
+export const PERSONNEL_SCOPES = ["none", "own", "subtree", "all"] as const;
+export type PersonnelScope = (typeof PERSONNEL_SCOPES)[number];
+
+export const PERSONNEL_SCOPE_LABEL: Record<PersonnelScope, string> = {
+  none: "ไม่ได้",
+  own: "เฉพาะหน่วยตน",
+  subtree: "หน่วยตนและหน่วยใต้สังกัด",
+  all: "ทุกเขต",
 };
+
+export const scopeRank = (scope: PersonnelScope) => PERSONNEL_SCOPES.indexOf(scope);
 
 /** บทบาทที่เข้าหน้า "บัญชีผู้ใช้" และ "ทบทวนสิทธิ์" ได้ (ผู้อนุมัติ) */
 export const ACCOUNT_MANAGER_ROLES = ["admin", "central_staff", "chief", "deputy_chief", "secretary"];
