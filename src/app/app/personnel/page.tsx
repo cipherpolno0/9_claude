@@ -51,11 +51,17 @@ export default async function PersonnelPage({
           {personName(p)}
         </Link>,
         PERSON_TYPE_LABEL[p.person_type],
-        <>
+        <div key="unit">
           {p.temple_name || "-"}
           <span className="block text-sm text-muted-foreground">{p.org_unit_name}</span>
-        </>,
-        p.positions ? <span className="whitespace-pre-line">{p.positions}</span> : "-",
+        </div>,
+        p.positions ? (
+          <span key="positions" className="whitespace-pre-line">
+            {p.positions}
+          </span>
+        ) : (
+          "-"
+        ),
         phansa === null ? "-" : phansa,
         p.is_active ? personStatusLabel(p.status, p.person_type) : "ปิดใช้งาน",
       ],

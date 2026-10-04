@@ -72,6 +72,7 @@
 - เครื่องอนุมัติกลาง (ขยายในบทที่ 7): request_types.is_personnel = คำขอที่มีข้อมูลส่วนบุคคล (policy requests_read ให้เห็นเฉพาะผู้ยื่น เจ้าของประวัติ และผู้มีสิทธิ์ดูทะเบียนบุคคลของหน่วยในเส้นทาง); private.create_request มีแบบ 5 ค่า รับเส้นทางกำหนดเอง (uuid[]); ผู้ที่เป็นเจ้าของประวัติของคำขอ (payload.person_id) พิจารณาคำขอนั้นไม่ได้; คำขอเรื่องสถานะแก้ payload ได้เฉพาะ detail เมื่อส่งใหม่; หน้า /app/approvals/[id] ใช้ approveLabel / allowReject ของ DecisionForm และ approvedLabel ของ RequestTimeline สำหรับการแจ้ง
 - OrgUnitPicker มี autoSelect (ค่าเริ่มต้น true) ให้ปิดเมื่อผู้ใช้ต้องตั้งใจเลือกหน่วยเอง เช่น หน่วยปลายทางของคำขอย้าย รายการเขตปกครองทั้งนิกายใช้ fetchUnitsOfSect() (src/lib/status-server.ts)
 - alter table ... drop constraint ผ่าน apply_migration ได้ตามปกติ (ที่เคยค้างคือ drop policy)
+- ช่องของ DataTable (cells) ที่เป็น JSX ต้องใส่ key ทุกตัว และห้ามใช้ <>...</> (ใส่ key ไม่ได้) ให้ใช้ <div key="..."> แทน มิฉะนั้นโหมด npm run dev จะขึ้นคำเตือน Each child in a list should have a unique "key" prop
 - เครื่องของผู้สั่งงานใช้พอร์ต 3002 (กำหนดใน package.json: npm run dev) ที่อยู่ทดสอบคือ http://localhost:3002 และต้องตรงกับ URL Configuration ใน Supabase
 
 @AGENTS.md

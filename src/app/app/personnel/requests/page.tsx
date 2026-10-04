@@ -33,12 +33,12 @@ export default async function PersonnelRequestsPage({
       r.org_unit_name,
       thaiDate(r.effective_on, "short"),
       thaiDate(r.submitted_at, "short"),
-      <>
+      <div key="status">
         {isNoticeType(r.type_key) && r.status === "approved" ? "รับทราบแล้ว" : REQUEST_STATUS_LABEL[r.status as RequestStatus]}
         {r.current_unit_name && r.status === "pending" ? (
           <span className="block text-sm text-muted-foreground">รอที่ {r.current_unit_name}</span>
         ) : null}
-      </>,
+      </div>,
     ],
   }));
 

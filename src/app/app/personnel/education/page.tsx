@@ -51,10 +51,10 @@ export default async function EducationStaffPage({
         {personName(e)}
       </Link>,
       e.position_name,
-      <>
+      <div key="school">
         {e.school_name || "-"}
         {e.school_type ? <span className="block text-sm text-muted-foreground">{SCHOOL_TYPE_LABEL[e.school_type]}</span> : null}
-      </>,
+      </div>,
       e.org_unit_name,
       e.subjects || "-",
       thaiDate(e.started_on, "short"),
