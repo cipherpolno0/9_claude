@@ -49,7 +49,7 @@ export const getAuthContext = cache(async () => {
     supabase.from("app_settings").select("key, value_int"),
     supabase.auth.mfa.listFactors(),
     supabase.from("role_menus").select("role_key, menu_href").eq("enabled", true),
-    supabase.from("roles").select("key, personnel_view, personnel_edit, places_view, places_edit"),
+    supabase.from("roles").select("key, personnel_view, personnel_edit, places_view, places_edit, venues_view, venues_edit"),
   ]);
 
   const profile = (profileRes.data as Profile | null) ?? null;
@@ -82,6 +82,8 @@ export const getAuthContext = cache(async () => {
     personnel_edit: PersonnelScope;
     places_view: PersonnelScope;
     places_edit: PersonnelScope;
+    venues_view: PersonnelScope;
+    venues_edit: PersonnelScope;
   };
   const scopes = new Map(((scopesRes.data as ScopeRow[] | null) ?? []).map((r) => [r.key, r]));
   // มีสิทธิ์แก้ไขทะเบียนบุคคลอย่างน้อยหนึ่งเขต (สิทธิ์จริงตรวจที่ฐานข้อมูลตามเขตปกครองอีกชั้น)
@@ -92,6 +94,14 @@ export const getAuthContext = cache(async () => {
   const canEditPlaces = roles.some((r) => {
     const edit = scopes.get(r.role_key)?.places_edit ?? "none";
     return r.effective && (edit === "all" || (edit !== "none" && r.org_unit_id !== null));
+  });
+  const canEditVenues = roles.some((r) => {
+    const edit = scopes.get(r.role_key)?.venues_edit ?? "none";
+    return r.effective && (edit === "all" || (edit !== "none" && r.org_unit_id !== null));
+  });
+  const canViewVenues = roles.some((r) => {
+    const view = scopes.get(r.role_key)?.venues_view ?? "none";
+    return r.effective && (view === "all" || (view !== "none" && r.org_unit_id !== null));
   });
   const canViewAllPersonnel = roles.some((r) => r.effective && scopes.get(r.role_key)?.personnel_view === "all");
 
@@ -114,6 +124,8 @@ export const getAuthContext = cache(async () => {
     canEditPersonnel,
     canViewAllPersonnel,
     canEditPlaces,
+    canViewVenues,
+    canEditVenues,
     settings,
   };
 });

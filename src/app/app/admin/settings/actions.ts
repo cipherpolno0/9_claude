@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import type { FormState } from "@/components/form";
 import { explainError, type ActionResult } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 
@@ -50,4 +51,36 @@ export async function setPositionLimit(key: string, limit: number | null): Promi
   if (!data?.length) return { ok: false, error: "ท่านไม่มีสิทธิ์ทำรายการนี้" };
   revalidatePath(PAGE);
   return { ok: true, message: "บันทึกแล้ว" };
+}
+
+// ------------------------------------------------------------------
+// ปีการศึกษา (ใช้กับทะเบียนสนามสอบและระบบสอบ) เพิ่มและตั้งปีปัจจุบันได้เฉพาะผู้ดูแลระบบ
+// ------------------------------------------------------------------
+
+export async function addAcademicYear(_prev: FormState, formData: FormData): Promise<FormState> {
+  const year = Number(String(formData.get("year_be") ?? "").trim());
+  const startsOn = String(formData.get("starts_on") ?? "");
+  const endsOn = String(formData.get("ends_on") ?? "");
+  if (!Number.isInteger(year) || year < 2400 || year > 2700) return { error: "กรุณากรอกปีการศึกษาเป็น พ.ศ. 4 หลัก" };
+  if (formData.get("starts_on_incomplete") || formData.get("ends_on_incomplete") || !startsOn || !endsOn) {
+    return { error: "กรุณากรอกวันเริ่มและวันสิ้นสุดให้ครบ" };
+  }
+  if (endsOn <= startsOn) return { error: "วันสิ้นสุดต้องอยู่หลังวันเริ่ม" };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("academic_years")
+    .insert({ year_be: year, starts_on: startsOn, ends_on: endsOn })
+    .select("id");
+  if (error) return { error: error.code === "23505" ? `มีปีการศึกษา ${year} อยู่แล้ว` : explainError(error) };
+  if (!data?.length) return { error: "ท่านไม่มีสิทธิ์ทำรายการนี้" };
+  revalidatePath("/", "layout");
+  return { message: `เพิ่มปีการศึกษา ${year} แล้ว` };
+}
+
+export async function setCurrentAcademicYear(yearId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_current_academic_year", { p_year_id: yearId });
+  if (error) return { ok: false, error: explainError(error) };
+  revalidatePath("/", "layout");
+  return { ok: true, message: "ตั้งปีการศึกษาปัจจุบันแล้ว" };
 }

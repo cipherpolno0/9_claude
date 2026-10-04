@@ -15,12 +15,15 @@ export type RoleRow = {
   personnel_edit: PersonnelScope;
   places_view: PersonnelScope;
   places_edit: PersonnelScope;
+  venues_view: PersonnelScope;
+  venues_edit: PersonnelScope;
 };
 
 /** ระบบที่ตั้งขอบเขตดู/แก้ไขได้ (เพิ่มระบบใหม่ที่นี่ คู่กับคอลัมน์ <area>_view / <area>_edit ใน roles) */
 const AREAS: { key: ScopeArea; title: string; menu: string; menuTitle: string }[] = [
   { key: "personnel", title: "ทะเบียนบุคคล", menu: "/app/personnel", menuTitle: "บุคลากร" },
   { key: "places", title: "ทะเบียนสถานที่", menu: "/app/places", menuTitle: "ทะเบียนสถานที่" },
+  { key: "venues", title: "ทะเบียนสนามสอบ", menu: "/app/places", menuTitle: "ทะเบียนสถานที่" },
 ];
 export type MenuRow = { role_key: string; menu_href: string; enabled: boolean };
 
@@ -97,6 +100,10 @@ export function PermissionsManager({
           <li>สิทธิ์แก้ไขกว้างกว่าสิทธิ์ดูไม่ได้ และไม่มีบทบาทใดเห็นข้ามสายการปกครอง ยกเว้นเลือก “ทุกเขต”</li>
           <li>ขอบเขตทะเบียนบุคคลใช้กับ ข้อมูลบุคคล ตำแหน่งปกครอง ทะเบียน จศป. และคำขอเปลี่ยนสถานะ</li>
           <li>ขอบเขตทะเบียนสถานที่ใช้กับ วัด สำนักเรียน สำนักศาสนศึกษา สถานศึกษา และองค์กร ตามเขตปกครองคณะสงฆ์ที่สังกัด</li>
+          <li>
+            ขอบเขตทะเบียนสนามสอบใช้กับ สนามสอบ ประธานสนามสอบ และผู้รับข้อสอบ (มีที่อยู่จัดส่งข้อสอบและเบอร์ติดต่อ)
+            หน้าสนามสอบอยู่ในเมนู ทะเบียนสถานที่
+          </li>
         </ul>
       </div>
 

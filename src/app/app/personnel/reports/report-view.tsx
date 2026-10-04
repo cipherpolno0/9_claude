@@ -1,10 +1,15 @@
+import { Fragment } from "react";
+
 import type { ReportTable } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 
 const alignClass = { left: "text-left", center: "text-center", right: "text-right" } as const;
 
-/** ตารางรายงานบนจอ (ข้อมูลชุดเดียวกับไฟล์ Excel และหน้าพิมพ์) */
+/** ตารางรายงานบนจอ (ข้อมูลชุดเดียวกับไฟล์ Excel และหน้าพิมพ์) ถ้ารายงานกำหนด groupColumn จะแสดงเป็นหัวกลุ่ม */
 export function ReportView({ report }: { report: ReportTable }) {
+  const group = report.groupColumn;
+  const shown = report.columns.map((c, j) => ({ ...c, j })).filter((c) => c.j !== group);
+  const groupSize = (value: string | number) => report.rows.filter((r) => r[group ?? -1] === value).length;
   return (
     <div data-testid="report-view">
       <h2 className="text-xl font-bold text-primary">{report.title}</h2>
@@ -14,7 +19,7 @@ export function ReportView({ report }: { report: ReportTable }) {
         <table className="w-full min-w-[40rem] border-collapse">
           <thead className="bg-muted">
             <tr>
-              {report.columns.map((c) => (
+              {shown.map((c) => (
                 <th key={c.header} scope="col" className={cn("border-b px-3 py-2 font-semibold", alignClass[c.align ?? "left"])}>
                   {c.header}
                 </th>
@@ -24,28 +29,41 @@ export function ReportView({ report }: { report: ReportTable }) {
           <tbody>
             {report.rows.length === 0 ? (
               <tr>
-                <td colSpan={report.columns.length} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={shown.length} className="px-3 py-8 text-center text-muted-foreground">
                   ไม่มีข้อมูลในเขตนี้
                 </td>
               </tr>
             ) : (
               report.rows.map((row, i) => (
-                <tr key={i} className="border-b align-top last:border-b-0">
-                  {row.map((cell, j) => (
-                    <td key={j} className={cn("px-3 py-2", alignClass[report.columns[j]?.align ?? "left"])}>
-                      {cell}
-                    </td>
-                  ))}
-                </tr>
+                <Fragment key={i}>
+                  {group !== undefined && (i === 0 || report.rows[i - 1][group] !== row[group]) ? (
+                    <tr className="border-b bg-secondary" data-testid="report-group">
+                      <th scope="colgroup" colSpan={shown.length} className="px-3 py-2 text-left font-bold text-primary">
+                        {report.columns[group].header}
+                        {row[group]}{" "}
+                        <span className="font-normal text-muted-foreground">
+                          ({groupSize(row[group]).toLocaleString("th-TH")} รายการ)
+                        </span>
+                      </th>
+                    </tr>
+                  ) : null}
+                  <tr className="border-b align-top last:border-b-0">
+                    {shown.map((c) => (
+                      <td key={c.j} className={cn("px-3 py-2", alignClass[c.align ?? "left"])}>
+                        {row[c.j]}
+                      </td>
+                    ))}
+                  </tr>
+                </Fragment>
               ))
             )}
           </tbody>
           {report.footer && report.rows.length > 0 ? (
             <tfoot className="bg-muted font-semibold">
               <tr>
-                {report.footer.map((cell, j) => (
-                  <td key={j} className={cn("border-t px-3 py-2", alignClass[report.columns[j]?.align ?? "left"])}>
-                    {cell}
+                {shown.map((c) => (
+                  <td key={c.j} className={cn("border-t px-3 py-2", alignClass[c.align ?? "left"])}>
+                    {report.footer?.[c.j]}
                   </td>
                 ))}
               </tr>

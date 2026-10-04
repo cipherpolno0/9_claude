@@ -28,7 +28,7 @@ export async function setRoleMenu(roleKey: string, href: string, enabled: boolea
 }
 
 /** ระบบที่มีขอบเขตดู/แก้ไขตามเขตปกครอง: คอลัมน์ใน roles คือ <area>_view และ <area>_edit */
-const SCOPE_AREAS = ["personnel", "places"] as const;
+const SCOPE_AREAS = ["personnel", "places", "venues"] as const;
 export type ScopeArea = (typeof SCOPE_AREAS)[number];
 
 export async function setRoleScope(

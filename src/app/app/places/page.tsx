@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ClipboardList, Plus } from "lucide-react";
 
 import { DataTable, type DataTableRow } from "@/components/data-table";
 import { ErrorText } from "@/components/form";
@@ -88,22 +88,32 @@ export default async function PlacesPage({
             วัด สำนักเรียน สำนักศาสนศึกษา สถานศึกษา และองค์กร ในเขตที่ท่านดูแล กดที่ชื่อเพื่อดูรายละเอียด
           </p>
         </div>
-        {canEdit ? (
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
+          {ctx.canViewVenues ? (
+            <Button asChild variant="outline">
+              <Link href="/app/places/venues">
+                <ClipboardList aria-hidden />
+                ทะเบียนสนามสอบ
+              </Link>
+            </Button>
+          ) : null}
+          {canEdit ? (
             <Button asChild variant="outline">
               <a href={`/app/places/template?type=${type}`} download>
                 ดาวน์โหลดแม่แบบ Excel
               </a>
             </Button>
-            <PlaceImportButton key={type} type={type} />
+          ) : null}
+          {canEdit ? <PlaceImportButton key={type} type={type} /> : null}
+          {canEdit ? (
             <Button asChild>
               <Link href={`/app/places/new?type=${type}`}>
                 <Plus aria-hidden />
                 เพิ่ม{label}
               </Link>
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       <nav aria-label="ประเภทสถานที่" className="mt-6 flex flex-wrap gap-1 border-b" data-testid="place-tabs">

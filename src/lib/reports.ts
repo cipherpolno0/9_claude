@@ -44,12 +44,18 @@ export const STATUS_BADGE_CLASS: Record<string, string> = {
 /** ตารางรายงานแบบกลาง: ใช้ทั้งแสดงบนจอ ส่งออก Excel และหน้าพิมพ์ */
 export type ReportColumn = { header: string; width?: number; align?: "left" | "center" | "right" };
 export type ReportTable = {
-  kind: ReportKind;
+  /** ชนิดรายงาน (รายงานบุคลากรใช้ ReportKind ระบบอื่นใช้ชื่อของตน) */
+  kind: ReportKind | (string & {});
   title: string;
   subtitle: string;
   note?: string;
   columns: ReportColumn[];
   rows: (string | number)[][];
+  /**
+   * ลำดับคอลัมน์ที่ใช้แบ่งกลุ่ม (ไม่บังคับ) เช่น จังหวัด: บนจอและหน้าพิมพ์จะแสดงเป็นหัวกลุ่มแทนคอลัมน์
+   * ส่วนไฟล์ Excel ยังคงเป็นคอลัมน์ตามปกติ แถวต้องเรียงตามคอลัมน์นี้มาแล้ว
+   */
+  groupColumn?: number;
   /** แถวสรุปท้ายตาราง (ถ้ามี) */
   footer?: (string | number)[];
 };
