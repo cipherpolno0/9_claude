@@ -18,6 +18,7 @@ export function Attachments({
   orgUnitId,
   currentUserId,
   canUpload = true,
+  canRemoveAny = false,
   initial = [],
 }: {
   entityTable: string;
@@ -26,6 +27,8 @@ export function Attachments({
   orgUnitId: string | null;
   currentUserId: string;
   canUpload?: boolean;
+  /** เอาไฟล์ของผู้อื่นออกได้ด้วย (ใช้เมื่อสิทธิ์ของรายการนั้นอนุญาต ฐานข้อมูลตรวจซ้ำอีกชั้น) */
+  canRemoveAny?: boolean;
   initial?: Attachment[];
 }) {
   const [items, setItems] = useState<Attachment[]>(initial);
@@ -94,7 +97,7 @@ export function Attachments({
                 <Download aria-hidden />
                 <span className="hidden sm:inline">ดาวน์โหลด</span>
               </Button>
-              {a.uploaded_by === currentUserId ? (
+              {a.uploaded_by === currentUserId || canRemoveAny ? (
                 <Button variant="ghost" size="sm" disabled={pending} onClick={() => remove(a.id)} aria-label={`เอาออก ${a.file_name}`}>
                   <X aria-hidden />
                 </Button>

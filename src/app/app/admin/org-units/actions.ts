@@ -1,6 +1,5 @@
 "use server";
 
-import ExcelJS from "exceljs";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -15,6 +14,7 @@ import {
   type Sect,
 } from "@/lib/org-units";
 import { explainError as explain, type ActionResult } from "@/lib/errors";
+import { readUploadedSheet } from "@/lib/excel";
 import { createClient } from "@/lib/supabase/server";
 
 const PAGE = "/app/admin/org-units";
@@ -123,17 +123,6 @@ export type ImportPreview =
   | { ok: true; rows: ImportRow[]; counts: { new: number; skip: number; error: number } }
   | { ok: false; error: string };
 
-function cellText(value: ExcelJS.CellValue): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") {
-    if ("richText" in value) return value.richText.map((t) => t.text).join("");
-    if ("result" in value) return String(value.result ?? "");
-    if ("text" in value) return String(value.text ?? "");
-    if (value instanceof Date) return value.toISOString();
-  }
-  return String(value);
-}
-
 function count(rows: ImportRow[]) {
   return {
     new: rows.filter((r) => r.status === "new").length,
@@ -144,44 +133,16 @@ function count(rows: ImportRow[]) {
 
 export async function previewImport(formData: FormData): Promise<ImportPreview> {
   try {
-    const file = formData.get("file");
-    if (!(file instanceof File) || file.size === 0) return { ok: false, error: "กรุณาเลือกไฟล์ Excel" };
-    if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      return { ok: false, error: "รองรับเฉพาะไฟล์นามสกุล .xlsx" };
-    }
-    if (file.size > 4 * 1024 * 1024) return { ok: false, error: "ไฟล์ใหญ่เกิน 4 MB" };
-
-    const workbook = new ExcelJS.Workbook();
-    try {
-      await workbook.xlsx.load(await file.arrayBuffer());
-    } catch {
-      return { ok: false, error: "เปิดไฟล์ไม่ได้ กรุณาใช้แม่แบบที่ดาวน์โหลดจากหน้านี้" };
-    }
-    const sheet = workbook.worksheets[0];
-    if (!sheet) return { ok: false, error: "ไม่พบแผ่นงานในไฟล์" };
-
-    const header = IMPORT_HEADERS.map((_, i) => cellText(sheet.getRow(1).getCell(i + 1).value).trim());
-    if (header.some((h, i) => h !== IMPORT_HEADERS[i])) {
-      return {
-        ok: false,
-        error: `หัวคอลัมน์แถวแรกไม่ตรงกับแม่แบบ ต้องเป็น: ${IMPORT_HEADERS.join(", ")}`,
-      };
-    }
-
-    const raw: ImportRawRow[] = [];
-    sheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return;
-      const [code, name, level, sect, parentCode] = [1, 2, 3, 4, 5].map((c) =>
-        cellText(row.getCell(c).value),
-      );
-      if (![code, name, level, sect, parentCode].some((v) => v.trim())) return;
-      raw.push({ rowNumber, code, name, level, sect, parentCode });
-    });
-
-    if (raw.length === 0) return { ok: false, error: "ไม่พบข้อมูลในไฟล์ (มีแต่หัวคอลัมน์)" };
-    if (raw.length > IMPORT_MAX_ROWS) {
-      return { ok: false, error: `นำเข้าได้ครั้งละไม่เกิน ${IMPORT_MAX_ROWS.toLocaleString("th-TH")} แถว` };
-    }
+    const sheet = await readUploadedSheet(formData, IMPORT_HEADERS, IMPORT_MAX_ROWS);
+    if (!sheet.ok) return sheet;
+    const raw: ImportRawRow[] = sheet.rows.map(({ rowNumber, cells }) => ({
+      rowNumber,
+      code: cells[0],
+      name: cells[1],
+      level: cells[2],
+      sect: cells[3],
+      parentCode: cells[4],
+    }));
 
     const rows = validateImportRows(raw, await fetchOrgUnits());
     return { ok: true, rows, counts: count(rows) };

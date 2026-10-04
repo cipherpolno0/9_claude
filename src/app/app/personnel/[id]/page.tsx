@@ -1,0 +1,282 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Pencil } from "lucide-react";
+
+import { Attachments } from "@/components/attachments";
+import { InfoText } from "@/components/form";
+import { HistoryList } from "@/components/record-history";
+import { Button } from "@/components/ui/button";
+import { requireMenu } from "@/lib/auth/guards";
+import { fetchAccessibleUnits } from "@/lib/org-units-server";
+import {
+  END_REASON_LABEL,
+  NAK_THAM_LABEL,
+  PALI_LABEL,
+  PERSON_FIELD_LABEL,
+  PERSON_STATUS_LABEL,
+  PERSON_TYPE_LABEL,
+  ageOf,
+  isCurrentAppointment,
+  personName,
+  phansaOf,
+  type EndReason,
+  type PersonStatus,
+  type PersonType,
+} from "@/lib/persons";
+import {
+  editableUnits,
+  fetchAppointments,
+  fetchPerson,
+  fetchPersonPhotoUrl,
+  fetchPersonnelHistory,
+  fetchPositionTypes,
+  isPersonnelEditor,
+} from "@/lib/persons-server";
+import { thaiDate } from "@/lib/thai";
+import { cn } from "@/lib/utils";
+
+import { AppointmentsPanel } from "./appointments-panel";
+import { PersonActiveButton } from "./person-actions";
+import { PersonPhoto } from "./person-photo";
+
+export const metadata: Metadata = { title: "ประวัติรายบุคคล" };
+export const dynamic = "force-dynamic";
+
+const TABS = [
+  { key: "general", label: "ข้อมูลทั่วไป" },
+  { key: "positions", label: "ตำแหน่ง" },
+  { key: "files", label: "เอกสารแนบ" },
+  { key: "history", label: "ประวัติการแก้ไข" },
+] as const;
+type TabKey = (typeof TABS)[number]["key"];
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-1 border-b py-2 last:border-b-0 sm:grid-cols-[14rem_1fr]">
+      <dt className="font-semibold">{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
+
+export default async function PersonPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const ctx = await requireMenu("/app/personnel");
+  const { id } = await params;
+  const query = await searchParams;
+  // ถ้า RLS ไม่ให้เห็นบุคคลนี้ จะได้ null และแสดงหน้าไม่พบ
+  const person = await fetchPerson(id);
+  if (!person) notFound();
+
+  const tab: TabKey = TABS.some((t) => t.key === query.tab) ? (query.tab as TabKey) : "general";
+  const appointments = await fetchAppointments(person.id);
+  const editable = await editableUnits([person.org_unit_id, ...appointments.map((a) => a.org_unit_id)]);
+  const canEdit = editable.has(person.org_unit_id);
+  const name = personName(person);
+  const current = appointments.filter((a) => isCurrentAppointment(a));
+  const monastic = person.person_type === "monastic";
+  const phansa = monastic && person.status === "active" ? phansaOf(person.ordination_date) : null;
+  const age = person.status === "deceased" ? null : ageOf(person.birth_date);
+
+  return (
+    <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-10">
+      <p>
+        <Link href="/app/personnel" className="text-primary underline underline-offset-4">
+          ← ทะเบียนบุคคล
+        </Link>
+      </p>
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-primary sm:text-3xl">{name}</h1>
+          <p className="mt-1 text-muted-foreground">
+            {PERSON_TYPE_LABEL[person.person_type]}
+            {person.temple_name ? ` · ${person.temple_name}` : ""} · {person.org_unit_name}
+            {person.is_active ? "" : " · ปิดใช้งาน"}
+          </p>
+        </div>
+        {canEdit ? (
+          <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href={`/app/personnel/${person.id}/edit`}>
+                <Pencil aria-hidden />
+                แก้ไขข้อมูล
+              </Link>
+            </Button>
+            <PersonActiveButton personId={person.id} isActive={person.is_active} />
+          </div>
+        ) : null}
+      </div>
+
+      {query.saved ? (
+        <div className="mt-4">
+          <InfoText>บันทึกข้อมูลแล้ว</InfoText>
+        </div>
+      ) : null}
+
+      <nav aria-label="หัวข้อประวัติ" className="mt-6 flex flex-wrap gap-1 border-b">
+        {TABS.map((t) => (
+          <Link
+            key={t.key}
+            href={`/app/personnel/${person.id}?tab=${t.key}`}
+            aria-current={tab === t.key ? "page" : undefined}
+            scroll={false}
+            className={cn(
+              "rounded-t-md border border-b-0 px-4 py-2 font-semibold",
+              tab === t.key ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
+            )}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="mt-6">
+        {tab === "general" ? (
+          <div className="flex flex-col gap-6 sm:flex-row">
+            <PersonPhoto personId={person.id} url={await fetchPersonPhotoUrl(person.id)} name={name} canEdit={canEdit} />
+            <dl className="min-w-0 flex-1 rounded-xl border bg-card px-5 py-2" data-testid="person-general">
+              <Row label="ประเภท">{PERSON_TYPE_LABEL[person.person_type]}</Row>
+              <Row label="คำนำหน้าหรือสมณศักดิ์">{person.title || "-"}</Row>
+              <Row label="ชื่อ">{person.first_name}</Row>
+              {monastic ? <Row label="ฉายา">{person.monastic_name || "-"}</Row> : null}
+              <Row label="นามสกุล">{person.last_name || "-"}</Row>
+              <Row label="วันเกิด">
+                {thaiDate(person.birth_date)}
+                {age !== null ? ` (อายุ ${age} ปี)` : ""}
+              </Row>
+              <Row label="เลขประจำตัวประชาชน">
+                {person.national_id_last4 ? `xxxxxxxxx${person.national_id_last4} (แสดงเฉพาะ 4 ตัวท้าย)` : "-"}
+              </Row>
+              {monastic ? (
+                <>
+                  <Row label="วันอุปสมบท">{thaiDate(person.ordination_date)}</Row>
+                  <Row label="พรรษา (คำนวณ)">{phansa === null ? "-" : `${phansa} พรรษา`}</Row>
+                </>
+              ) : null}
+              <Row label="น.ธ.">{NAK_THAM_LABEL[person.nak_tham] ?? "-"}</Row>
+              <Row label="ป.ธ.">{PALI_LABEL[person.pali_grade] ?? "-"}</Row>
+              <Row label="วุฒิสามัญ">{person.general_education || "-"}</Row>
+              <Row label="วัดที่สังกัด">{person.temple_name || "-"}</Row>
+              <Row label="เขตปกครอง">{person.org_unit_name}</Row>
+              <Row label="เบอร์ติดต่อ">{person.phone || "-"}</Row>
+              <Row label="สถานะปัจจุบัน">{PERSON_STATUS_LABEL[person.status]}</Row>
+              <Row label="ตำแหน่งปัจจุบัน">
+                {current.length === 0 ? (
+                  "-"
+                ) : (
+                  <ul>
+                    {current.map((a) => (
+                      <li key={a.id}>
+                        {a.position_name} · {a.org_unit_name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Row>
+              <Row label="หมายเหตุ">{person.note || "-"}</Row>
+            </dl>
+          </div>
+        ) : null}
+
+        {tab === "positions" ? (
+          <AppointmentsPanel
+            personId={person.id}
+            appointments={appointments}
+            positionTypes={await fetchPositionTypes()}
+            units={isPersonnelEditor(ctx) && person.is_active ? await fetchAccessibleUnits() : []}
+            canAdd={isPersonnelEditor(ctx) && person.is_active}
+            editableUnitIds={[...editable]}
+            currentUserId={ctx.user.id}
+          />
+        ) : null}
+
+        {tab === "files" ? (
+          <div className="rounded-xl border bg-card p-5">
+            <h2 className="text-xl font-bold text-primary">เอกสารแนบของบุคคล</h2>
+            <p className="mb-3 text-muted-foreground">
+              เห็นได้เฉพาะผู้ที่มีสิทธิ์ดูทะเบียนบุคคลของเขตนี้ ไฟล์คำสั่งหรือตราตั้งให้แนบที่แท็บ ตำแหน่ง
+            </p>
+            <Attachments
+              entityTable="persons"
+              entityId={person.id}
+              orgUnitId={person.org_unit_id}
+              currentUserId={ctx.user.id}
+              canUpload={canEdit}
+              canRemoveAny={canEdit}
+            />
+          </div>
+        ) : null}
+
+        {tab === "history" ? <History personId={person.id} appointments={appointments} /> : null}
+      </div>
+    </section>
+  );
+}
+
+async function History({
+  personId,
+  appointments,
+}: {
+  personId: string;
+  appointments: Awaited<ReturnType<typeof fetchAppointments>>;
+}) {
+  const [logs, units, positionTypes] = await Promise.all([
+    fetchPersonnelHistory(personId),
+    fetchAccessibleUnits(),
+    fetchPositionTypes(),
+  ]);
+  const unitName = new Map(units.map((u) => [u.id, u.name]));
+  const positionName = new Map(positionTypes.map((t) => [t.key, t.name]));
+  const appointmentLabel = new Map(appointments.map((a) => [a.id, `ตำแหน่ง${a.position_name} · ${a.org_unit_name}`]));
+
+  const format = (field: string, value: unknown): string | null => {
+    if (value === null || value === undefined || value === "") return "(ว่าง)";
+    const v = String(value);
+    switch (field) {
+      case "person_type":
+        return PERSON_TYPE_LABEL[v as PersonType] ?? v;
+      case "status":
+        return PERSON_STATUS_LABEL[v as PersonStatus] ?? v;
+      case "nak_tham":
+        return NAK_THAM_LABEL[v] ?? v;
+      case "pali_grade":
+        return PALI_LABEL[v] ?? v;
+      case "end_reason":
+        return END_REASON_LABEL[v as EndReason] ?? v;
+      case "position_type_key":
+        return positionName.get(v) ?? v;
+      case "org_unit_id":
+        return unitName.get(v) ?? "(เขตที่ท่านไม่ได้ดูแล)";
+      case "birth_date":
+      case "ordination_date":
+      case "appointed_on":
+      case "ended_on":
+        return thaiDate(v);
+      case "is_active":
+        return value === true ? "ใช้งาน" : "ปิดใช้งาน";
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="rounded-xl border bg-card p-5">
+      <h2 className="text-xl font-bold text-primary">ประวัติการแก้ไข</h2>
+      <p className="mb-3 text-muted-foreground">ทุกการเพิ่มและแก้ไขข้อมูลบุคคลและตำแหน่ง ระบบบันทึกไว้อัตโนมัติ</p>
+      <HistoryList
+        logs={logs.map((l) => ({
+          ...l,
+          subject: l.table_name === "persons" ? "ข้อมูลบุคคล" : (appointmentLabel.get(l.row_id) ?? "ตำแหน่ง"),
+        }))}
+        labels={PERSON_FIELD_LABEL}
+        format={format}
+      />
+    </div>
+  );
+}

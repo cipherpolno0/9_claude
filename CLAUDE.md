@@ -50,6 +50,14 @@
 - เลขที่คำขอ: [code]-[ปี พ.ศ.]-[ลำดับ 4 หลัก] ออกโดย submit_request เท่านั้น
 - ชื่อบุคคลที่เกี่ยวกับคำขอให้อ่านผ่าน request_people(request_id) ห้ามเปิด RLS ของ profiles เพิ่ม (กันอีเมลและเบอร์ติดต่อรั่ว)
 - ตาราง audit_logs อ่านได้เฉพาะผู้ดูแลระบบ ตารางใหม่ทุกตารางที่เก็บข้อมูลงานต้องผูก trigger audit_row_change()
+- ทะเบียนบุคคล (เพิ่มในบทที่ 5): ตาราง persons, position_types, appointments  สิทธิ์ใช้ can_view_personnel(org_unit_id) / can_edit_personnel(org_unit_id) / can_view_person(person_id) (ดู = ผู้ดูแลระบบ ส่วนกลาง เจ้าคณะ รองเจ้าคณะ เลขานุการ; แก้ไข = เลขานุการในเขตและผู้ดูแลระบบ) ห้ามใช้ can_access กับข้อมูลบุคคล
+- persons เขียนผ่านฟังก์ชัน save_person / set_person_active / import_persons เท่านั้น อ่านต้องระบุคอลัมน์ด้วย PERSON_COLUMNS (src/lib/persons.ts) ห้าม select * เพราะคอลัมน์ national_id_enc และ national_id_hash ไม่เปิดให้อ่าน
+- เลขประจำตัวประชาชน: เข้ารหัสด้วย pgcrypto กุญแจอยู่ใน Supabase Vault ชื่อ national_id_key (ห้ามลบหรือเปลี่ยน) หน้าเว็บ ไฟล์ส่งออก และประวัติการแก้ไข แสดงได้เฉพาะ 4 ตัวท้าย ยังไม่มีฟังก์ชันถอดรหัสให้เรียกผ่าน API
+- appointments: หนึ่งแถว = หนึ่งวาระ ห้ามแก้บุคคล ตำแหน่ง หรือหน่วยของแถวเดิม พ้นตำแหน่งให้ใส่ ended_on + end_reason บันทึกผิดให้ปิด is_active  กติกาจำนวนต่อหน่วยอยู่ใน trigger appointments_check และ position_types.max_per_unit (ว่าง = ไม่จำกัด แก้ที่หน้า บทบาทและค่าตั้ง)
+- พรรษา อายุ ไม่เก็บในฐานข้อมูล คำนวณด้วย phansaOf / ageOf ใน src/lib/persons.ts (พรรษานับโดยประมาณ: อุปสมบทก่อน 1 ส.ค. และพ้น 31 ต.ค. ของปีนั้น)
+- ชิ้นส่วนกลางที่เพิ่มในบทที่ 5 ต้องใช้ซ้ำ: ช่องวันที่ พ.ศ. = ThaiDateInput (src/components/thai-date-input.tsx); นำเข้า Excel = ImportDialog (src/components/import-dialog.tsx) คู่กับ readUploadedSheet และ workbookResponse (src/lib/excel.ts); ประวัติของผู้ใช้ที่ไม่ใช่ผู้ดูแลระบบ = ฟังก์ชันฐานข้อมูลที่ตรวจสิทธิ์เอง + <HistoryList logs labels format />
+- ไฟล์แนบของข้อมูลบุคคลใช้ entity_table = persons / person_photos / appointments เขตปกครองของไฟล์ถูกกำหนดจากรายการที่แนบโดย trigger ถ้ามีตารางข้อมูลส่วนบุคคลใหม่ต้องเพิ่มชื่อใน policy ของ attachments ด้วย migration
+- apply_migration ของตัวเชื่อมต่อ Supabase เคยหมดเวลา 2 ครั้งกับไฟล์ที่มี drop policy และผ่านเมื่อเปลี่ยนเป็น alter policy (คาดว่าคำสั่ง drop ต้องรอผู้ใช้ยืนยัน) การแก้ policy จึงให้ใช้ alter policy
 - เครื่องของผู้สั่งงานใช้พอร์ต 3002 (กำหนดใน package.json: npm run dev) ที่อยู่ทดสอบคือ http://localhost:3002 และต้องตรงกับ URL Configuration ใน Supabase
 
 @AGENTS.md

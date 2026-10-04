@@ -31,3 +31,23 @@ export async function updateSetting(key: string, value: number): Promise<ActionR
   revalidatePath("/", "layout");
   return { ok: true, message: "บันทึกแล้ว" };
 }
+
+/** จำนวนสูงสุดของตำแหน่งต่อหน่วยในเวลาเดียวกัน (null = ไม่จำกัด) เจ้าคณะมีได้ 1 รูปเสมอ */
+export async function setPositionLimit(key: string, limit: number | null): Promise<ActionResult> {
+  if (limit !== null && (!Number.isInteger(limit) || limit < 1 || limit > 99)) {
+    return { ok: false, error: "กรุณากรอกจำนวนเป็นเลขจำนวนเต็ม 1 ถึง 99 หรือเว้นว่างถ้าไม่จำกัด" };
+  }
+  if (key.startsWith("chief_") && limit !== 1) {
+    return { ok: false, error: "ตำแหน่งเจ้าคณะมีได้ 1 รูปต่อหน่วยเสมอ" };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("position_types")
+    .update({ max_per_unit: limit })
+    .eq("key", key)
+    .select("key");
+  if (error) return { ok: false, error: explainError(error) };
+  if (!data?.length) return { ok: false, error: "ท่านไม่มีสิทธิ์ทำรายการนี้" };
+  revalidatePath(PAGE);
+  return { ok: true, message: "บันทึกแล้ว" };
+}
