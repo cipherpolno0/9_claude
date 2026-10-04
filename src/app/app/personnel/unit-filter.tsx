@@ -7,8 +7,27 @@ import { OrgUnitPicker } from "@/components/org-unit-picker";
 import { Button } from "@/components/ui/button";
 import type { AccessibleOrgUnit } from "@/lib/org-units-server";
 
-/** กรองรายชื่อตามเขตปกครอง (รวมเขตใต้สังกัด) เก็บค่าในที่อยู่หน้าเว็บเป็น f_unit */
-export function UnitFilter({ units, value }: { units: AccessibleOrgUnit[]; value: string }) {
+/**
+ * กรองตามเขตปกครอง (รวมเขตใต้สังกัด) เก็บค่าในที่อยู่หน้าเว็บ (ค่าเริ่มต้น f_unit)
+ * หน้าผังและรายงานใช้ param="unit" และแสดงชื่อเขตที่เลือกอยู่ด้วย currentName
+ */
+export function UnitFilter({
+  units,
+  value,
+  param = "f_unit",
+  emptyLabel = "ทุกเขตที่ท่านดูแล",
+  currentName,
+  applyLabel = "กรองตามเขตนี้",
+  allowClear = true,
+}: {
+  units: AccessibleOrgUnit[];
+  value: string;
+  param?: string;
+  emptyLabel?: string;
+  currentName?: string;
+  applyLabel?: string;
+  allowClear?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -19,8 +38,8 @@ export function UnitFilter({ units, value }: { units: AccessibleOrgUnit[]; value
 
   const apply = (unitId: string) => {
     const next = new URLSearchParams(searchParams.toString());
-    if (unitId) next.set("f_unit", unitId);
-    else next.delete("f_unit");
+    if (unitId) next.set(param, unitId);
+    else next.delete(param);
     next.delete("page");
     setOpen(false);
     startTransition(() => router.push(`${pathname}?${next.toString()}`, { scroll: false }));
@@ -31,12 +50,12 @@ export function UnitFilter({ units, value }: { units: AccessibleOrgUnit[]; value
       <div className="flex flex-wrap items-center gap-3">
         <p>
           <span className="font-semibold">เขตปกครอง:</span>{" "}
-          <span data-testid="unit-filter-value">{current ? current.name : "ทุกเขตที่ท่านดูแล"}</span>
+          <span data-testid="unit-filter-value">{currentName ?? (current ? current.name : emptyLabel)}</span>
         </p>
         <Button type="button" variant="outline" size="sm" onClick={() => setOpen((o) => !o)} disabled={pending}>
           {open ? "ซ่อนตัวเลือกเขต" : "เลือกเขต"}
         </Button>
-        {value ? (
+        {value && allowClear ? (
           <Button type="button" variant="ghost" size="sm" onClick={() => apply("")} disabled={pending}>
             ล้างตัวกรองเขต
           </Button>
@@ -47,7 +66,7 @@ export function UnitFilter({ units, value }: { units: AccessibleOrgUnit[]; value
           <OrgUnitPicker units={units} name="filter_unit" defaultValue={value || null} onChange={setPicked} />
           <div>
             <Button type="button" onClick={() => apply(picked)} disabled={pending || !picked}>
-              กรองตามเขตนี้
+              {applyLabel}
             </Button>
           </div>
         </div>

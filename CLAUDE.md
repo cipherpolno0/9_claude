@@ -76,6 +76,14 @@
 - สิทธิ์ตามบทบาท (เพิ่มก่อนบทที่ 8): ผู้ดูแลระบบตั้งเองได้ที่ /app/admin/permissions  เมนู = ตาราง role_menus (role_key, menu_href, enabled); ขอบเขตทะเบียนบุคคล = roles.personnel_view / roles.personnel_edit ค่า none ไม่ได้ / own เฉพาะหน่วยตน / subtree หน่วยตนและใต้สังกัด / all ทุกเขต (แก้ไขกว้างกว่าดูไม่ได้ ผู้ดูแลระบบได้เต็มเสมอ บังคับด้วย check constraint)
 - ห้ามเขียนชื่อบทบาทตายตัวเพื่อตัดสินสิทธิ์ของทะเบียนบุคคล ทั้งในฐานข้อมูลและหน้าเว็บ ให้ใช้ can_view_personnel / can_edit_personnel / can_edit_any_personnel() และ ctx.canEditPersonnel, ctx.canViewAllPersonnel (src/lib/auth/session.ts) ระบบใหม่ที่ต้องการขอบเขตแบบเดียวกันให้เพิ่มคอลัมน์ขอบเขตของตนใน roles และเพิ่มช่องในหน้า สิทธิ์ตามบทบาท
 - เมนูใหม่ของพื้นที่ทำงานต้องเพิ่มแถวใน role_menus ให้ครบทุกบทบาทด้วย migration (หน้า สิทธิ์ตามบทบาท อ่านรายการเมนูจาก workspaceMenu ใน src/lib/site.ts)
+- บทที่ 8 (ตรวจสอบ ผัง ทำเนียบสาธารณะ รายงาน): ไม่มีตารางใหม่ มีแต่ฟังก์ชันอ่าน หน้าใหม่ /app/personnel/lookup, /chart, /reports (+ /export, /print), แดชบอร์ดบนหน้า /app/personnel และหน้าสาธารณะ /directory/officers (ลิงก์จาก /registry)
+- เขตที่ผู้ใช้ดูทะเบียนบุคคลได้ = viewable_personnel_units(); หน่วยบนสุดสำหรับตัวเลือกเริ่มต้น = personnel_view_roots() (เห็นทุกเขต = รายชื่อภาค) รายงานและผังรับ p_unit แล้วกรองด้วยชุดนี้เสมอ (ฟังก์ชัน security definer: governance_slots, report_directory, report_education_staff, report_status_summary, personnel_counts) ห้ามเขียนฟังก์ชันรายงานที่ไม่กรองด้วย viewable_personnel_units()
+- ตำแหน่งที่ "ดำรงอยู่วันนี้" = is_active และ appointed_on <= วันนี้ และ (ended_on ว่าง หรือ > วันนี้) และบุคคล is_active  ตำแหน่งว่าง = เจ้าคณะไม่มีผู้ดำรง / รองเจ้าคณะและเลขานุการ ไม่มีผู้ดำรง หรือมีน้อยกว่า max_per_unit (คำนวณใน governance_slots.missing)
+- รายงานใช้ตารางกลาง ReportTable (src/lib/reports.ts) สร้างด้วย buildReport() ใน src/lib/reports-server.ts ชุดเดียว แล้วแสดงบนจอ (ReportView) ส่งออก Excel (xlsxResponse) และหน้าพิมพ์ (ReportPrintSheet บน PrintPage) รายงานใหม่ของระบบอื่นให้ทำแบบเดียวกัน
+- ปีงบประมาณ: ปีงบ 2570 = 1 ต.ค. 2569 – 30 ก.ย. 2570 ใช้ fiscal_year_be(date) ในฐานข้อมูล และ fiscalYearOf / fiscalYearRange ใน src/lib/reports.ts เท่านั้น (รายงานรายปีทุกระบบนับตามปีงบประมาณ)
+- ป้ายสีสถานะบุคคลใช้ <StatusBadge status personType /> (src/components/status-badge.tsx) UnitFilter รับ param / currentName / applyLabel / allowClear ใช้เลือกเขตของผังและรายงานได้
+- หน้าสาธารณะที่มีชื่อบุคคลต้องอ่านผ่านฟังก์ชัน security definer เฉพาะที่ grant ให้ anon และคืนเฉพาะคอลัมน์ที่เปิดเผยได้ (ตัวอย่าง public_officers: ชื่อ-ฉายา ตำแหน่ง สังกัด สถานะ ไม่มีรหัสบุคคล นามสกุล วันเกิด เบอร์ รูป หมายเหตุ; สถานะ transfer_pending แสดงเป็น active; จำกัด 50 แถวต่อครั้ง) ห้ามเปิด RLS ของ persons / appointments ให้ anon
+- PrintPage แปลงเลขในชื่อเอกสาร (title) ตามแบบตัวเลขที่เลือกด้วยแล้ว
 - เครื่องของผู้สั่งงานใช้พอร์ต 3002 (กำหนดใน package.json: npm run dev) ที่อยู่ทดสอบคือ http://localhost:3002 และต้องตรงกับ URL Configuration ใน Supabase
 
 @AGENTS.md

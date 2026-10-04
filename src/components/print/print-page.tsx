@@ -83,7 +83,7 @@ export function PrintPage({
         >
           <header className="mb-6 border-b-2 border-black pb-3 text-center">
             <p className="text-lg font-bold">{unitName ?? site.shortName}</p>
-            <h1 className="mt-1 text-xl font-bold">{title}</h1>
+            <h1 className="mt-1 text-xl font-bold">{digits(title, mode)}</h1>
             {subtitle ? <p className="mt-1">{digits(subtitle, mode)}</p> : null}
           </header>
           <div className="leading-relaxed">{children}</div>

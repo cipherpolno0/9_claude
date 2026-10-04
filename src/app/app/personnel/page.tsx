@@ -21,6 +21,7 @@ import { findWorkspaceMenu } from "@/lib/site";
 import { explainError } from "@/lib/errors";
 
 import { ImportButton } from "./import-button";
+import { PersonnelDashboard } from "./personnel-dashboard";
 import { UnitFilter } from "./unit-filter";
 
 const menu = findWorkspaceMenu("/app/personnel");
@@ -107,7 +108,10 @@ export default async function PersonnelPage({
         </div>
       </div>
 
-      <div className="mt-6 flex flex-col gap-4">
+      <PersonnelDashboard />
+
+      <h2 className="mt-8 text-xl font-bold text-primary">รายชื่อบุคคล</h2>
+      <div className="mt-3 flex flex-col gap-4">
         {table.error ? <ErrorText>{explainError(table.error)}</ErrorText> : null}
         <UnitFilter units={units} value={params.filters.unit ?? ""} />
         <DataTable
