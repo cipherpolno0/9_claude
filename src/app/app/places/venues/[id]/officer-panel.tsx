@@ -32,6 +32,8 @@ function OfficerForm({
     return result;
   });
   const label = OFFICER_ROLE_LABEL[role];
+  const [isPublic, setIsPublic] = useState(officer?.is_public ?? false);
+  const [phonePublic, setPhonePublic] = useState(officer?.is_phone_public ?? false);
   return (
     <form onSubmit={onSubmit} className="mt-3 flex flex-col gap-4" noValidate>
       <input type="hidden" name="id" value={officer?.id ?? ""} />
@@ -65,20 +67,41 @@ function OfficerForm({
         />
         <Field id={`${role}-note`} label="หมายเหตุ" name="note" defaultValue={officer?.note ?? ""} />
       </div>
-      <label className="flex items-start gap-2">
-        <input
-          type="checkbox"
-          name="is_public"
-          defaultChecked={officer?.is_public ?? false}
-          className="mt-1 size-5 shrink-0 accent-[var(--primary)]"
-        />
-        <span>
-          ยินยอมให้เผยแพร่ชื่อ{label}ต่อสาธารณะ
-          <span className="block text-sm text-muted-foreground">
-            ค่าเริ่มต้นคือไม่เผยแพร่ ที่อยู่จัดส่งและเบอร์ติดต่อไม่ถูกเผยแพร่ไม่ว่ากรณีใด
+      <fieldset className="flex flex-col gap-2 rounded-md border border-input p-3">
+        <legend className="px-1 font-medium">การเผยแพร่บนหน้าทะเบียนสาธารณะ</legend>
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            name="is_public"
+            checked={isPublic}
+            onChange={(e) => {
+              setIsPublic(e.target.checked);
+              if (!e.target.checked) setPhonePublic(false);
+            }}
+            className="mt-1 size-5 shrink-0 accent-[var(--primary)]"
+          />
+          <span>ยินยอมให้เผยแพร่ชื่อ{label}</span>
+        </label>
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            name="is_phone_public"
+            checked={phonePublic}
+            disabled={!isPublic}
+            onChange={(e) => setPhonePublic(e.target.checked)}
+            className="mt-1 size-5 shrink-0 accent-[var(--primary)]"
+          />
+          <span>
+            ยินยอมให้เผยแพร่เบอร์ติดต่อด้วย
+            <span className="block text-sm text-muted-foreground">
+              ติ๊กได้เมื่อยินยอมเผยแพร่ชื่อแล้ว ถ้าเป็นเบอร์ส่วนตัว ควรได้รับความยินยอมจากเจ้าของเบอร์ก่อน
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+        <p className="text-sm text-muted-foreground">
+          ค่าเริ่มต้นคือไม่เผยแพร่ทั้งสองอย่าง ที่อยู่สำหรับจัดส่งข้อสอบและหมายเหตุไม่ถูกเผยแพร่ไม่ว่ากรณีใด
+        </p>
+      </fieldset>
       <FormMessages state={state} />
       <div className="flex flex-wrap gap-2">
         <SubmitButton pending={pending} pendingText="กำลังบันทึก...">
@@ -174,7 +197,13 @@ export function OfficerPanel({
           <dt className="font-semibold">เบอร์ติดต่อ</dt>
           <dd>{officer.contact_phone || "-"}</dd>
           <dt className="font-semibold">การเผยแพร่</dt>
-          <dd>{officer.is_public ? "ยินยอมให้เผยแพร่ชื่อ" : "ไม่เผยแพร่"}</dd>
+          <dd>
+            {officer.is_public
+              ? officer.is_phone_public
+                ? "ยินยอมให้เผยแพร่ชื่อและเบอร์ติดต่อ"
+                : "ยินยอมให้เผยแพร่ชื่อ (ไม่เผยแพร่เบอร์ติดต่อ)"
+              : "ไม่เผยแพร่"}
+          </dd>
           {officer.note ? (
             <>
               <dt className="font-semibold">หมายเหตุ</dt>

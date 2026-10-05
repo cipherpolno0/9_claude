@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import type { FormState } from "@/components/form";
@@ -23,6 +23,7 @@ import {
   type PlaceImportRow,
   type PlaceType,
 } from "@/lib/places";
+import { REGISTRY_TAG } from "@/lib/registry";
 import { createClient } from "@/lib/supabase/server";
 
 const LIST = "/app/places";
@@ -100,6 +101,7 @@ export async function savePlace(_prev: FormState, formData: FormData): Promise<F
   }
 
   revalidatePath(LIST);
+  revalidateTag(REGISTRY_TAG, { expire: 0 }); // ล้างแคชของหน้าทะเบียนสาธารณะ ให้เห็นค่าใหม่ทันที
   revalidatePath(`${LIST}/${savedId}`);
   redirect(`${LIST}/${savedId}?saved=1`);
 }
@@ -118,6 +120,7 @@ export async function setPlaceActive(id: string, active: boolean): Promise<Actio
   if (error) return { ok: false, error: explainPlaceError(error) };
   if (!data?.length) return { ok: false, error: "ท่านไม่มีสิทธิ์แก้ไขสถานที่นี้" };
   revalidatePath(LIST);
+  revalidateTag(REGISTRY_TAG, { expire: 0 }); // ล้างแคชของหน้าทะเบียนสาธารณะ ให้เห็นค่าใหม่ทันที
   revalidatePath(`${LIST}/${id}`);
   return { ok: true, message: active ? "เปิดใช้งานแล้ว" : "ปิดใช้งานแล้ว" };
 }
@@ -265,6 +268,7 @@ export async function confirmPlaceImport(type: PlaceType, raw: PlaceImportRaw[])
     const { data, error } = await supabase.rpc("import_places", { p_type: type, p_rows: fresh.map((r) => r.data) });
     if (error) return { ok: false, error: explainError(error) };
     revalidatePath(LIST);
+    revalidateTag(REGISTRY_TAG, { expire: 0 }); // ล้างแคชของหน้าทะเบียนสาธารณะ ให้เห็นค่าใหม่ทันที
     return { ok: true, message: `นำเข้าแล้ว ${Number(data).toLocaleString("th-TH")} รายการ` };
   } catch (error) {
     return { ok: false, error: explainError(error) };

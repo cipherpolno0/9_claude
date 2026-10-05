@@ -169,13 +169,22 @@ export type VenueOfficer = {
   delivery_address: string;
   contact_phone: string;
   is_public: boolean;
+  is_phone_public: boolean;
   note: string;
 };
 
 export async function fetchVenueOfficers(venueId: string): Promise<VenueOfficer[]> {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("venue_officer_rows", { p_venue_id: venueId });
-  return (data as VenueOfficer[] | null) ?? [];
+  // venue_officer_rows คืนชื่อบุคคล (ผู้ดูสนามสอบอาจไม่มีสิทธิ์ดูทะเบียนบุคคล) ส่วนความยินยอมเผยแพร่เบอร์อ่านจากตารางโดยตรงใต้ RLS
+  const [rows, flags] = await Promise.all([
+    supabase.rpc("venue_officer_rows", { p_venue_id: venueId }),
+    supabase.from("venue_officers").select("id, is_phone_public").eq("venue_id", venueId).eq("is_active", true),
+  ]);
+  const phone = new Map(((flags.data as { id: string; is_phone_public: boolean }[] | null) ?? []).map((f) => [f.id, f.is_phone_public]));
+  return ((rows.data as Omit<VenueOfficer, "is_phone_public">[] | null) ?? []).map((o) => ({
+    ...o,
+    is_phone_public: phone.get(o.id) ?? false,
+  }));
 }
 
 export type VenueHistoryLog = {

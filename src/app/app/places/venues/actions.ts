@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import type { FormState } from "@/components/form";
@@ -8,6 +8,7 @@ import type { PickerItem } from "@/components/search-picker";
 import { explainError, type ActionResult } from "@/lib/errors";
 import { isUuid } from "@/lib/persons-server";
 import { PLACE_TYPE_LABEL, type PlaceType } from "@/lib/places";
+import { REGISTRY_TAG } from "@/lib/registry";
 import { createClient } from "@/lib/supabase/server";
 import {
   VENUE_LEVELS,
@@ -90,6 +91,7 @@ export async function saveVenue(_prev: FormState, formData: FormData): Promise<F
   }
 
   revalidatePath(LIST);
+  revalidateTag(REGISTRY_TAG, { expire: 0 }); // หน้าทะเบียนสาธารณะแคชไว้ ให้เห็นค่าใหม่ทันที
   revalidatePath(`${LIST}/${savedId}`);
   redirect(`${LIST}/${savedId}?saved=1`);
 }
@@ -102,6 +104,7 @@ export async function setVenueActive(id: string, active: boolean): Promise<Actio
   if (error) return { ok: false, error: explainVenueError(error) };
   if (!data?.length) return { ok: false, error: "ท่านไม่มีสิทธิ์แก้ไขสนามสอบนี้" };
   revalidatePath(LIST);
+  revalidateTag(REGISTRY_TAG, { expire: 0 }); // หน้าทะเบียนสาธารณะแคชไว้ ให้เห็นค่าใหม่ทันที
   revalidatePath(`${LIST}/${id}`);
   return { ok: true, message: active ? "เปิดใช้งานแล้ว" : "ปิดใช้งานแล้ว" };
 }
@@ -122,11 +125,14 @@ export async function saveVenueOfficer(_prev: FormState, formData: FormData): Pr
   if (!isUuid(personId)) return { error: `กรุณาเลือก${OFFICER_ROLE_LABEL[role]}จากทะเบียนบุคคล` };
   if (phone && !/^[0-9 +()-]+$/.test(phone)) return { error: "เบอร์ติดต่อใช้ได้เฉพาะตัวเลข ช่องว่าง และเครื่องหมาย + - ( )" };
 
+  const isPublic = formData.get("is_public") === "on";
   const row = {
     person_id: personId,
     delivery_address: text(formData, "delivery_address"),
     contact_phone: phone,
-    is_public: formData.get("is_public") === "on",
+    is_public: isPublic,
+    // เผยแพร่เบอร์ติดต่อได้เมื่อยินยอมเผยแพร่ชื่อด้วยเท่านั้น (ฐานข้อมูลบังคับซ้ำด้วย check constraint)
+    is_phone_public: isPublic && formData.get("is_phone_public") === "on",
     note: text(formData, "note"),
   };
   const supabase = await createClient();
@@ -142,6 +148,7 @@ export async function saveVenueOfficer(_prev: FormState, formData: FormData): Pr
     if (error) return { error: explainVenueError(error) };
   }
   revalidatePath(LIST);
+  revalidateTag(REGISTRY_TAG, { expire: 0 }); // หน้าทะเบียนสาธารณะแคชไว้ ให้เห็นค่าใหม่ทันที
   revalidatePath(`${LIST}/${venueId}`);
   return { message: `บันทึก${OFFICER_ROLE_LABEL[role]}แล้ว` };
 }
@@ -159,6 +166,7 @@ export async function removeVenueOfficer(officerId: string, venueId: string): Pr
   if (error) return { ok: false, error: explainVenueError(error) };
   if (!data?.length) return { ok: false, error: "ท่านไม่มีสิทธิ์แก้ไขสนามสอบนี้" };
   revalidatePath(LIST);
+  revalidateTag(REGISTRY_TAG, { expire: 0 }); // หน้าทะเบียนสาธารณะแคชไว้ ให้เห็นค่าใหม่ทันที
   revalidatePath(`${LIST}/${venueId}`);
   return { ok: true, message: "นำรายชื่อออกแล้ว" };
 }
@@ -184,7 +192,10 @@ export async function copyVenueOfficers(
   if (error) return { ok: false, error: explainError(error) };
   const row = (data as { from_year_be: number; copied: number; skipped_filled: number; skipped_person: number }[] | null)?.[0];
   if (!row) return { ok: false, error: "ไม่มีข้อมูลให้คัดลอก" };
-  if (!dryRun) revalidatePath(LIST, "layout");
+  if (!dryRun) {
+    revalidatePath(LIST, "layout");
+    revalidateTag(REGISTRY_TAG, { expire: 0 });
+  }
   return {
     ok: true,
     result: {

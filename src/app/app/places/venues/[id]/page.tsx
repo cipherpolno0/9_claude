@@ -37,7 +37,7 @@ function formatHistory(field: string, value: unknown): string | null {
   if (field === "role") return OFFICER_ROLE_LABEL[value as OfficerRole] ?? null;
   if (field === "levels") return Array.isArray(value) ? venueLevelsText(value as string[]) : null;
   if (field === "is_active") return value ? "ใช้งาน" : "ปิดใช้งาน (นำออก)";
-  if (field === "is_public") return value ? "ยินยอมให้เผยแพร่ชื่อ" : "ไม่เผยแพร่";
+  if (field === "is_public" || field === "is_phone_public") return value ? "ยินยอม" : "ไม่เผยแพร่";
   if (["org_unit_id", "place_id", "moved_to_venue_id", "person_id", "venue_id", "academic_year_id", "copied_from_id"].includes(field)) {
     return "(เปลี่ยนรายการ)";
   }
@@ -237,7 +237,8 @@ async function Officers({
         ))}
       </div>
       <p className="text-sm text-muted-foreground">
-        ที่อยู่จัดส่งข้อสอบและเบอร์ติดต่อเป็นข้อมูลภายใน เห็นได้เฉพาะผู้มีสิทธิ์ดูทะเบียนสนามสอบของเขตนี้
+        ที่อยู่จัดส่งข้อสอบเป็นข้อมูลภายใน เห็นได้เฉพาะผู้มีสิทธิ์ดูทะเบียนสนามสอบของเขตนี้ ส่วนชื่อและเบอร์ติดต่อจะขึ้นหน้าทะเบียนสาธารณะ
+        เฉพาะรายการที่ติ๊กยินยอมให้เผยแพร่
       </p>
 
       {others.length > 0 ? (

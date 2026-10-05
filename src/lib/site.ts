@@ -21,6 +21,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { REGISTRY_BASE, REGISTRY_KINDS } from "@/lib/registry";
+
 /** ข้อมูลกลางของเว็บ แก้ที่นี่ที่เดียว */
 export const site = {
   name: "เว็บไซต์กองบริหารทะเบียนและวัดผล",
@@ -35,6 +37,8 @@ export type MenuItem = {
   /** คำอธิบายสั้นที่แสดงในหน้าว่าง */
   description: string;
   icon?: LucideIcon;
+  /** เมนูย่อย (ใช้กับเมนูสาธารณะ) */
+  children?: { title: string; href: string }[];
 };
 
 /** เมนูโซนสาธารณะ 7 เมนู (ไม่ต้องล็อกอิน) */
@@ -48,6 +52,10 @@ export const publicMenu: MenuItem[] = [
     title: "ทะเบียน",
     href: "/registry",
     description: "ค้นหาทะเบียนสำนักเรียน วัด สถานศึกษา สนามสอบ และทำเนียบบุคลากร",
+    children: [
+      ...REGISTRY_KINDS.map((k) => ({ title: k.title, href: `${REGISTRY_BASE}/${k.slug}` })),
+      { title: "ทำเนียบผู้ดำรงตำแหน่ง", href: "/directory/officers" },
+    ],
   },
   {
     title: "สอบธรรมสนามหลวง",

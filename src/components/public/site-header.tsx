@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogIn, Menu } from "lucide-react";
+import { ChevronDown, LogIn, Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,11 +13,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { loginPath, publicMenu, site } from "@/lib/site";
+import { loginPath, publicMenu, site, type MenuItem } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
+}
+
+/** เมนูหลักถือว่าเปิดอยู่เมื่ออยู่ในหน้าของเมนูนั้นหรือหน้าของเมนูย่อย (เช่น ทำเนียบ อยู่ใต้เมนู ทะเบียน) */
+function isMenuActive(pathname: string, item: MenuItem) {
+  return isActive(pathname, item.href) || (item.children ?? []).some((c) => isActive(pathname, c.href));
 }
 
 export function SiteHeader() {
@@ -40,19 +45,46 @@ export function SiteHeader() {
         <nav aria-label="เมนูหลัก" className="ml-auto hidden xl:block">
           <ul className="flex items-center gap-1">
             {publicMenu.map((item) => {
-              const active = isActive(pathname, item.href);
+              const active = isMenuActive(pathname, item);
               return (
-                <li key={item.href}>
+                <li key={item.href} className="group relative">
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
+                    aria-haspopup={item.children ? "true" : undefined}
                     className={cn(
-                      "block rounded-md px-3 py-2 font-medium whitespace-nowrap transition-colors hover:bg-white/15",
+                      "flex items-center gap-1 rounded-md px-3 py-2 font-medium whitespace-nowrap transition-colors hover:bg-white/15",
                       active && "bg-white/15 text-gold",
                     )}
                   >
                     {item.title}
+                    {item.children ? <ChevronDown className="size-4" aria-hidden /> : null}
                   </Link>
+                  {item.children ? (
+                    // เมนูย่อย: เปิดเมื่อชี้เมาส์หรือเมื่อใช้แป้น Tab เข้ามา (focus-within)
+                    <ul
+                      aria-label={`เมนูย่อยของ ${item.title}`}
+                      data-testid="submenu"
+                      className="invisible absolute top-full left-0 z-50 min-w-56 rounded-b-md border border-t-0 bg-card py-1 text-card-foreground opacity-0 shadow-lg transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100"
+                    >
+                      {item.children.map((child) => (
+                        <li key={child.href}>
+                          {/* ปิด prefetch: เมนูย่อยชี้ไปหน้าค้นหาที่อ่านฐานข้อมูล ไม่ควรโหลดล่วงหน้าทุกครั้งที่เปิดหน้าใดก็ตาม */}
+                          <Link
+                            href={child.href}
+                            prefetch={false}
+                            aria-current={isActive(pathname, child.href) ? "page" : undefined}
+                            className={cn(
+                              "block px-4 py-2 whitespace-nowrap hover:bg-secondary",
+                              isActive(pathname, child.href) && "bg-secondary font-semibold text-primary",
+                            )}
+                          >
+                            {child.title}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </li>
               );
             })}
@@ -88,7 +120,7 @@ export function SiteHeader() {
             <nav aria-label="เมนูหลัก (มือถือ)" className="flex-1 overflow-y-auto p-3">
               <ul className="flex flex-col gap-1">
                 {publicMenu.map((item) => {
-                  const active = isActive(pathname, item.href);
+                  const active = isMenuActive(pathname, item);
                   return (
                     <li key={item.href}>
                       <SheetClose asChild>
@@ -103,6 +135,27 @@ export function SiteHeader() {
                           {item.title}
                         </Link>
                       </SheetClose>
+                      {item.children ? (
+                        <ul aria-label={`เมนูย่อยของ ${item.title}`} className="mb-1 ml-4 flex flex-col border-l-2 border-input">
+                          {item.children.map((child) => (
+                            <li key={child.href}>
+                              <SheetClose asChild>
+                                <Link
+                                  href={child.href}
+                                  prefetch={false}
+                                  aria-current={isActive(pathname, child.href) ? "page" : undefined}
+                                  className={cn(
+                                    "block rounded-r-md px-3 py-2 hover:bg-accent",
+                                    isActive(pathname, child.href) && "bg-accent font-semibold text-primary",
+                                  )}
+                                >
+                                  {child.title}
+                                </Link>
+                              </SheetClose>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </li>
                   );
                 })}

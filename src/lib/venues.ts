@@ -54,6 +54,7 @@ export const VENUE_FIELD_LABEL: Record<string, string> = {
   person_id: "บุคคล",
   delivery_address: "ที่อยู่สำหรับจัดส่งข้อสอบ",
   contact_phone: "เบอร์ติดต่อ",
-  is_public: "เผยแพร่ต่อสาธารณะ",
+  is_public: "เผยแพร่ชื่อต่อสาธารณะ",
+  is_phone_public: "เผยแพร่เบอร์ติดต่อต่อสาธารณะ",
   copied_from_id: "คัดลอกจากปีก่อน",
 };

@@ -1,9 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import type { FormState } from "@/components/form";
 import { explainError, type ActionResult } from "@/lib/errors";
+import { REGISTRY_TAG } from "@/lib/registry";
 import { createClient } from "@/lib/supabase/server";
 
 const PAGE = "/app/admin/settings";
@@ -82,5 +83,6 @@ export async function setCurrentAcademicYear(yearId: string): Promise<ActionResu
   const { error } = await supabase.rpc("set_current_academic_year", { p_year_id: yearId });
   if (error) return { ok: false, error: explainError(error) };
   revalidatePath("/", "layout");
+  revalidateTag(REGISTRY_TAG, { expire: 0 }); // หน้าสนามสอบสาธารณะแสดงรายชื่อของปีปัจจุบัน
   return { ok: true, message: "ตั้งปีการศึกษาปัจจุบันแล้ว" };
 }

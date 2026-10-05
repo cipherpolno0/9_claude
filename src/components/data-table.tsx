@@ -25,6 +25,8 @@ export type DataTableFilter = {
   name: string;
   label: string;
   options: { value: string; label: string }[];
+  /** ตัวกรองอื่นที่ต้องล้างค่าเมื่อตัวกรองนี้เปลี่ยน เช่น เปลี่ยนจังหวัดแล้วล้างอำเภอและตำบล */
+  clears?: string[];
 };
 
 export type DataTableRow = { id: string; cells: React.ReactNode[] };
@@ -119,8 +121,14 @@ export function DataTable({
             {f.label}
             <select
               className={cn(selectClass, "min-w-36 font-normal")}
+              data-filter={f.name}
               value={filterValues[f.name] ?? ""}
-              onChange={(e) => update({ [`f_${f.name}`]: e.target.value || null })}
+              onChange={(e) =>
+                update({
+                  ...Object.fromEntries((f.clears ?? []).map((name) => [`f_${name}`, null])),
+                  [`f_${f.name}`]: e.target.value || null,
+                })
+              }
             >
               <option value="">ทั้งหมด</option>
               {f.options.map((o) => (
