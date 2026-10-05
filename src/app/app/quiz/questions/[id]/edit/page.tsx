@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireQuizManager } from "@/lib/auth/guards";
-import { fetchCourses, fetchQuestion, fetchUnits } from "@/lib/quiz-server";
+import { fetchCourses, fetchLessonOptions, fetchQuestion, fetchUnits } from "@/lib/quiz-server";
 
 import { QuestionForm } from "../../question-form";
 
@@ -15,7 +15,7 @@ export default async function EditQuestionPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const question = await fetchQuestion(id);
   if (!question) notFound();
-  const [courses, units] = await Promise.all([fetchCourses(), fetchUnits()]);
+  const [courses, units, lessons] = await Promise.all([fetchCourses(), fetchUnits(), fetchLessonOptions()]);
   // หน่วยเดิมของข้อนี้อาจถูกปิดใช้งานไปแล้ว ให้ยังเลือกค้างไว้ได้
   const allUnits =
     question.units && !units.some((u) => u.id === question.unit_id)
@@ -39,6 +39,7 @@ export default async function EditQuestionPage({ params }: { params: Promise<{ i
         question={question}
         courses={courses.filter((c) => c.has_mcq)}
         units={allUnits}
+        lessons={lessons}
         backHref={`/app/quiz/questions/${question.id}`}
       />
     </section>

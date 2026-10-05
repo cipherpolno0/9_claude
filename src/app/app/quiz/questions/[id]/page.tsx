@@ -34,7 +34,7 @@ function formatHistory(field: string, value: unknown): string | null {
   if (field === "correct_choice") return CHOICE_LABEL[value as ChoiceKey] ?? null;
   if (field === "is_active") return value ? "ใช้งาน" : "ปิดใช้งาน";
   if (field === "published_at") return thaiDateTime(String(value));
-  if (field === "course_id" || field === "unit_id") return "(เปลี่ยนรายการ)";
+  if (field === "course_id" || field === "unit_id" || field === "lesson_id") return "(เปลี่ยนรายการ)";
   return null;
 }
 
@@ -101,6 +101,16 @@ export default async function QuestionPage({
         <FactRow label="หน่วยการเรียน">
           {question.units?.name ?? "-"}
           {question.units && !question.units.is_active ? " (ปิดใช้งาน)" : ""}
+        </FactRow>
+        <FactRow label="บทเรียนที่เกี่ยวข้อง">
+          {question.lessons ? (
+            <Link href={`/app/quiz/lessons/${question.lesson_id}`} className="text-primary underline underline-offset-4">
+              {question.lessons.title}
+            </Link>
+          ) : (
+            "ไม่ระบุ"
+          )}
+          {question.lessons && !question.lessons.is_active ? " (ปิดใช้งาน)" : ""}
         </FactRow>
         <FactRow label="ข้อถูก">
           {CHOICE_LABEL[question.correct_choice]}. {question[`choice_${question.correct_choice}`]}

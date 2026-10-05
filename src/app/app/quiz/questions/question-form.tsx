@@ -25,6 +25,7 @@ export type QuestionFormValue = {
   id: string;
   course_id: string;
   unit_id: string;
+  lesson_id: string | null;
   question_text: string;
   choice_a: string;
   choice_b: string;
@@ -44,6 +45,7 @@ export function QuestionForm({
   question,
   courses,
   units,
+  lessons,
   backHref,
 }: {
   question: QuestionFormValue;
@@ -51,11 +53,14 @@ export function QuestionForm({
   courses: Course[];
   /** หน่วยที่ใช้งานของทุกรายวิชา (และหน่วยเดิมของข้อที่กำลังแก้ไข) */
   units: Unit[];
+  /** บทเรียนที่ใช้งานของทุกหน่วย (ตัวเลือกของช่อง บทเรียนที่เกี่ยวข้อง) */
+  lessons: { id: string; unit_id: string; title: string }[];
   backHref: string;
 }) {
   const { state, onSubmit, pending } = useServerForm(saveQuestion);
   const [courseId, setCourseId] = useState(question.course_id);
   const [unitId, setUnitId] = useState(question.unit_id);
+  const [lessonId, setLessonId] = useState(question.lesson_id ?? "");
   const [text, setText] = useState(question.question_text);
   const [choices, setChoices] = useState<Record<ChoiceKey, string>>({
     a: question.choice_a,
@@ -66,6 +71,7 @@ export function QuestionForm({
   const [correct, setCorrect] = useState<ChoiceKey | "">(question.correct_choice);
   const [explanation, setExplanation] = useState(question.explanation);
   const courseUnits = units.filter((u) => u.course_id === courseId);
+  const unitLessons = lessons.filter((l) => l.unit_id === unitId);
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6" noValidate>
@@ -86,6 +92,7 @@ export function QuestionForm({
               onChange={(e) => {
                 setCourseId(e.target.value);
                 setUnitId("");
+                setLessonId("");
               }}
             >
               <option value="">-- เลือกรายวิชา --</option>
@@ -106,7 +113,10 @@ export function QuestionForm({
               name="unit_id"
               className={selectClass}
               value={unitId}
-              onChange={(e) => setUnitId(e.target.value)}
+              onChange={(e) => {
+                setUnitId(e.target.value);
+                setLessonId("");
+              }}
               disabled={!courseId}
             >
               <option value="">{courseId ? "-- เลือกหน่วย --" : "-- เลือกรายวิชาก่อน --"}</option>
@@ -124,6 +134,27 @@ export function QuestionForm({
                 </Link>
               </p>
             ) : null}
+          </div>
+          <div className="flex flex-col gap-1 sm:col-span-2">
+            <Label htmlFor="lesson_id">บทเรียนที่เกี่ยวข้อง</Label>
+            <select
+              id="lesson_id"
+              name="lesson_id"
+              className={selectClass}
+              value={lessonId}
+              onChange={(e) => setLessonId(e.target.value)}
+              disabled={!unitId}
+            >
+              <option value="">{unitId ? "-- ไม่ระบุ --" : "-- เลือกหน่วยก่อน --"}</option>
+              {unitLessons.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.title}
+                </option>
+              ))}
+            </select>
+            <p className="text-sm text-muted-foreground">
+              ไม่บังคับ ถ้าผู้เรียนตอบข้อนี้ผิดในแบบทดสอบก่อนเรียน ระบบจะยกบทเรียนหัวข้อนี้ขึ้นไว้บนสุด
+            </p>
           </div>
         </div>
       </div>

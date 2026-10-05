@@ -73,13 +73,15 @@ export type Question = {
   status: QuestionStatus;
   published_at: string | null;
   is_active: boolean;
+  /** บทเรียนที่เกี่ยวข้อง (ไม่บังคับ) ใช้ยกหัวข้อที่ตอบผิดไว้บนสุด */
+  lesson_id: string | null;
   created_at: string;
   updated_at: string;
 };
 
 /** คอลัมน์ของ questions ที่หน้าเว็บอ่าน (ไม่อ่าน dup_key ซึ่งเป็นค่าที่ระบบคำนวณ) */
 export const QUESTION_COLUMNS =
-  "id, course_id, unit_id, question_text, choice_a, choice_b, choice_c, choice_d, correct_choice, explanation, source_year_be, difficulty, status, published_at, is_active, created_at, updated_at";
+  "id, course_id, unit_id, question_text, choice_a, choice_b, choice_c, choice_d, correct_choice, explanation, source_year_be, difficulty, status, published_at, is_active, lesson_id, created_at, updated_at";
 
 export const choiceText = (q: Pick<Question, "choice_a" | "choice_b" | "choice_c" | "choice_d">, key: ChoiceKey) =>
   q[`choice_${key}`];
@@ -87,6 +89,7 @@ export const choiceText = (q: Pick<Question, "choice_a" | "choice_b" | "choice_c
 export const QUESTION_FIELD_LABEL: Record<string, string> = {
   course_id: "รายวิชา",
   unit_id: "หน่วยการเรียน",
+  lesson_id: "บทเรียนที่เกี่ยวข้อง",
   question_text: "โจทย์",
   choice_a: "ตัวเลือก ก",
   choice_b: "ตัวเลือก ข",
@@ -191,4 +194,100 @@ export function validateQuestionImportRows(raw: QuestionImportRaw[]): QuestionIm
       },
     };
   });
+}
+
+// ------------------------------------------------------------------
+// บทเรียน (บทที่ 13)
+// ------------------------------------------------------------------
+
+/** ชิ้นเนื้อหาของบทเรียน เรียงตามลำดับที่แสดง (ต้องตรงกับที่ trigger lessons_rules ตรวจ) */
+export type LessonBlock =
+  | { type: "text"; text: string }
+  | { type: "image"; path: string; caption: string }
+  | { type: "video"; video_id: string }
+  | { type: "pdf"; path: string; title: string };
+
+export const LESSON_BLOCK_LABEL: Record<LessonBlock["type"], string> = {
+  text: "ข้อความ",
+  image: "รูป",
+  video: "วิดีโอ YouTube",
+  pdf: "ไฟล์ PDF",
+};
+export const LESSON_MAX_BLOCKS = 60;
+export const LESSON_TEXT_MAX = 20000;
+
+export type Lesson = {
+  id: string;
+  unit_id: string;
+  title: string;
+  blocks: LessonBlock[];
+  sort_order: number;
+  status: QuestionStatus;
+  published_at: string | null;
+  is_active: boolean;
+};
+
+export const LESSON_STATUS_LABEL = QUESTION_STATUS_LABEL;
+
+/** ที่เก็บรูปและ PDF ของบทเรียน (แบบสาธารณะ) */
+export const LESSON_MEDIA_BUCKET = "lesson-media";
+export const LESSON_IMAGE_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+export const LESSON_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+export const LESSON_PDF_MAX_BYTES = 10 * 1024 * 1024;
+
+/** ที่อยู่ของไฟล์ในที่เก็บสาธารณะของบทเรียน */
+export function lessonMediaUrl(path: string): string {
+  const safe = path.split("/").map(encodeURIComponent).join("/");
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/storage/v1/object/public/${LESSON_MEDIA_BUCKET}/${safe}`;
+}
+
+/** ดึงรหัสวิดีโอ 11 ตัวจากลิงก์ YouTube (watch, youtu.be, embed, shorts, live) หรือรับรหัสตรง ๆ คืน null ถ้าไม่ใช่ */
+export function youtubeId(input: string): string | null {
+  const text = input.trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(text)) return text;
+  const match = text.match(
+    /^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?:[?&#/].*)?$/,
+  );
+  return match ? match[1] : null;
+}
+
+// ------------------------------------------------------------------
+// เส้นทางเรียนของผู้เรียน (หน้าสาธารณะ /quiz)
+// ------------------------------------------------------------------
+
+export const QUIZ_BASE = "/quiz";
+/** ที่อยู่ของรายวิชาในหน้าสาธารณะ เช่น tri-primary-dhamma */
+export const courseSlug = (c: { level: string; stage: string; subject: string }) => `${c.level}-${c.stage}-${c.subject}`;
+
+export function parseCourseSlug(slug: string): { level: CourseLevel; stage: CourseStage; subject: CourseSubject } | null {
+  const [level, stage, subject, ...rest] = slug.split("-");
+  if (rest.length > 0) return null;
+  if (!(COURSE_LEVELS as readonly string[]).includes(level)) return null;
+  if (!(COURSE_STAGES as readonly string[]).includes(stage)) return null;
+  if (!(COURSE_SUBJECTS as readonly string[]).includes(subject)) return null;
+  return { level: level as CourseLevel, stage: stage as CourseStage, subject: subject as CourseSubject };
+}
+
+export const ATTEMPT_KINDS = ["pre", "post", "full"] as const;
+export type AttemptKind = (typeof ATTEMPT_KINDS)[number];
+export const ATTEMPT_KIND_LABEL: Record<AttemptKind, string> = {
+  pre: "แบบทดสอบก่อนเรียน",
+  post: "แบบทดสอบหลังเรียน",
+  full: "ทดสอบรวมทั้งวิชา",
+};
+
+/** เวลาแบบ นาที:วินาที หรือ ชั่วโมง:นาที:วินาที */
+export function clockText(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const h = Math.floor(s / 3600);
+  return h > 0 ? `${h}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}` : `${Math.floor(s / 60)}:${pad(s % 60)}`;
+}
+
+/** เวลาที่ใช้แบบข้อความ เช่น 12 นาที 5 วินาที */
+export function durationText(seconds: number | null): string {
+  if (seconds === null || seconds === undefined) return "-";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m > 0 ? `${m} นาที ${s} วินาที` : `${s} วินาที`;
 }

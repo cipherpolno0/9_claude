@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -10,6 +12,12 @@ import { readUploadedSheet } from "@/lib/excel";
 import { isUuid } from "@/lib/persons-server";
 import {
   DIFFICULTIES,
+  LESSON_IMAGE_MAX_BYTES,
+  LESSON_IMAGE_TYPES,
+  LESSON_MAX_BLOCKS,
+  LESSON_MEDIA_BUCKET,
+  LESSON_PDF_MAX_BYTES,
+  LESSON_TEXT_MAX,
   QUESTION_IMPORT_HEADERS,
   QUESTION_IMPORT_MAX_ROWS,
   QUESTION_STATUSES,
@@ -17,6 +25,8 @@ import {
   YEAR_MIN,
   isChoiceKey,
   validateQuestionImportRows,
+  youtubeId,
+  type LessonBlock,
   type QuestionImportRaw,
   type QuestionImportRow,
   type QuestionStatus,
@@ -78,6 +88,7 @@ export async function saveQuestion(_prev: FormState, formData: FormData): Promis
     explanation: text(formData, "explanation"),
     source_year_be: year,
     difficulty,
+    lesson_id: isUuid(text(formData, "lesson_id")) ? text(formData, "lesson_id") : null,
   };
 
   const supabase = await createClient();
@@ -300,4 +311,169 @@ export async function moveUnit(unitId: string, direction: "up" | "down"): Promis
   }
   revalidatePath(COURSES, "layout");
   return { ok: true };
+}
+
+// ------------------------------------------------------------------
+// บทเรียน (บทที่ 13)
+// ------------------------------------------------------------------
+
+const LESSONS = "/app/quiz/lessons";
+
+function explainLessonError(error: { code?: string; message?: string }): string {
+  if (error.code === "42501") return DENIED;
+  return explainError(error);
+}
+
+/** เพิ่มบทเรียนใหม่ (ฉบับร่าง ยังไม่มีเนื้อหา) แล้วพาไปหน้าแก้ไข */
+export async function createLesson(_prev: FormState, formData: FormData): Promise<FormState> {
+  const unitId = text(formData, "unit_id");
+  const title = text(formData, "title");
+  if (!isUuid(unitId)) return { error: "กรุณาเลือกหน่วยการเรียน" };
+  if (!title) return { error: "กรุณากรอกหัวข้อบทเรียน" };
+  if (title.length > 200) return { error: "หัวข้อยาวเกิน 200 ตัวอักษร" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("lessons").insert({ unit_id: unitId, title }).select("id").single();
+  if (error) return { error: explainLessonError(error) };
+  revalidatePath(ROOT, "layout");
+  redirect(`${LESSONS}/${(data as { id: string }).id}?created=1`);
+}
+
+/** ตรวจและจัดรูปชิ้นเนื้อหาที่ส่งมาจากหน้าจอ (ไม่เชื่อค่าที่ส่งมา) คืนข้อความผิดพลาดถ้าใช้ไม่ได้ */
+function cleanBlocks(lessonId: string, raw: unknown): { blocks: LessonBlock[] } | { error: string } {
+  if (!Array.isArray(raw)) return { error: "รูปแบบเนื้อหาไม่ถูกต้อง" };
+  if (raw.length > LESSON_MAX_BLOCKS) return { error: `บทเรียนหนึ่งหัวข้อมีเนื้อหาได้ไม่เกิน ${LESSON_MAX_BLOCKS} ชิ้น` };
+  const blocks: LessonBlock[] = [];
+  for (const [i, item] of raw.entries()) {
+    const b = (item ?? {}) as Record<string, unknown>;
+    const n = i + 1;
+    const str = (key: string) => String(b[key] ?? "").trim();
+    if (b.type === "text") {
+      const value = String(b.text ?? "").replace(/\r\n/g, "\n").trim();
+      if (!value) return { error: `ชิ้นที่ ${n} (ข้อความ) ยังว่างอยู่ กรุณากรอกหรือลบชิ้นนี้` };
+      if (value.length > LESSON_TEXT_MAX) return { error: `ชิ้นที่ ${n} (ข้อความ) ยาวเกิน ${LESSON_TEXT_MAX.toLocaleString("th-TH")} ตัวอักษร` };
+      blocks.push({ type: "text", text: value });
+    } else if (b.type === "image") {
+      if (!new RegExp(`^${lessonId}/[0-9a-f-]{36}\\.(jpg|png|webp)$`).test(str("path"))) {
+        return { error: `ชิ้นที่ ${n} (รูป) ยังไม่ได้อัปโหลดรูป กรุณาเลือกรูปหรือลบชิ้นนี้` };
+      }
+      blocks.push({ type: "image", path: str("path"), caption: str("caption").slice(0, 300) });
+    } else if (b.type === "pdf") {
+      if (!new RegExp(`^${lessonId}/[0-9a-f-]{36}\\.pdf$`).test(str("path"))) {
+        return { error: `ชิ้นที่ ${n} (ไฟล์ PDF) ยังไม่ได้อัปโหลดไฟล์ กรุณาเลือกไฟล์หรือลบชิ้นนี้` };
+      }
+      blocks.push({ type: "pdf", path: str("path"), title: str("title").slice(0, 200) });
+    } else if (b.type === "video") {
+      const id = youtubeId(str("video_id"));
+      if (!id) return { error: `ชิ้นที่ ${n} (วิดีโอ) ลิงก์ YouTube ไม่ถูกต้อง ตัวอย่างที่ใช้ได้: https://www.youtube.com/watch?v=...` };
+      blocks.push({ type: "video", video_id: id });
+    } else {
+      return { error: `ชิ้นที่ ${n} ชนิดเนื้อหาไม่ถูกต้อง` };
+    }
+  }
+  return { blocks };
+}
+
+/** บันทึกหัวข้อและเนื้อหาของบทเรียน */
+export async function saveLesson(lessonId: string, title: string, rawBlocks: unknown): Promise<ActionResult> {
+  if (!isUuid(lessonId)) return { ok: false, error: "ไม่พบบทเรียนนี้" };
+  const cleanTitle = String(title ?? "").trim();
+  if (!cleanTitle) return { ok: false, error: "กรุณากรอกหัวข้อบทเรียน" };
+  if (cleanTitle.length > 200) return { ok: false, error: "หัวข้อยาวเกิน 200 ตัวอักษร" };
+  const cleaned = cleanBlocks(lessonId, rawBlocks);
+  if ("error" in cleaned) return { ok: false, error: cleaned.error };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("lessons")
+    .update({ title: cleanTitle, blocks: cleaned.blocks })
+    .eq("id", lessonId)
+    .select("id");
+  if (error) return { ok: false, error: explainLessonError(error) };
+  if (!data?.length) return { ok: false, error: DENIED };
+  revalidatePath(ROOT, "layout");
+  return { ok: true, message: "บันทึกบทเรียนแล้ว" };
+}
+
+export async function setLessonStatus(lessonId: string, status: QuestionStatus): Promise<ActionResult> {
+  if (!isUuid(lessonId) || !(QUESTION_STATUSES as readonly string[]).includes(status)) return { ok: false, error: "ไม่พบบทเรียนนี้" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("lessons").update({ status }).eq("id", lessonId).select("id");
+  if (error) return { ok: false, error: explainLessonError(error) };
+  if (!data?.length) return { ok: false, error: DENIED };
+  revalidatePath(ROOT, "layout");
+  return { ok: true, message: status === "published" ? "เผยแพร่บทเรียนแล้ว ผู้เรียนเห็นได้ทันที" : "ถอนกลับเป็นร่างแล้ว ผู้เรียนไม่เห็นบทเรียนนี้" };
+}
+
+export async function setLessonActive(lessonId: string, active: boolean): Promise<ActionResult> {
+  if (!isUuid(lessonId)) return { ok: false, error: "ไม่พบบทเรียนนี้" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("lessons").update({ is_active: active }).eq("id", lessonId).select("id");
+  if (error) return { ok: false, error: explainLessonError(error) };
+  if (!data?.length) return { ok: false, error: DENIED };
+  revalidatePath(ROOT, "layout");
+  return { ok: true, message: active ? "เปิดใช้งานบทเรียนแล้ว" : "ปิดใช้งานบทเรียนแล้ว" };
+}
+
+/** เลื่อนลำดับบทเรียนในหน่วยขึ้นหรือลง 1 ขั้น */
+export async function moveLesson(lessonId: string, direction: "up" | "down"): Promise<ActionResult> {
+  if (!isUuid(lessonId)) return { ok: false, error: "ไม่พบบทเรียนนี้" };
+  const supabase = await createClient();
+  const { data: lesson } = await supabase.from("lessons").select("id, unit_id").eq("id", lessonId).maybeSingle();
+  if (!lesson) return { ok: false, error: DENIED };
+  const { data } = await supabase
+    .from("lessons")
+    .select("id, sort_order")
+    .eq("unit_id", (lesson as { unit_id: string }).unit_id)
+    .eq("is_active", true)
+    .order("sort_order")
+    .order("title");
+  const list = (data as { id: string; sort_order: number }[] | null) ?? [];
+  const index = list.findIndex((l) => l.id === lessonId);
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || target < 0 || target >= list.length) return { ok: true };
+  [list[index], list[target]] = [list[target], list[index]];
+  for (const [i, l] of list.entries()) {
+    if (l.sort_order === i + 1) continue;
+    const { error } = await supabase.from("lessons").update({ sort_order: i + 1 }).eq("id", l.id);
+    if (error) return { ok: false, error: explainLessonError(error) };
+  }
+  revalidatePath(LESSONS, "layout");
+  return { ok: true };
+}
+
+/**
+ * อัปโหลดรูปหรือ PDF ของบทเรียนเข้าที่เก็บสาธารณะ lesson-media (formData: file, kind = image | pdf)
+ * คืน path ที่ใช้ใส่ในชิ้นเนื้อหา ไฟล์ยังไม่แสดงต่อผู้เรียนจนกว่าจะกดบันทึกบทเรียนและเผยแพร่
+ */
+export async function uploadLessonMedia(
+  lessonId: string,
+  formData: FormData,
+): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
+  try {
+    if (!isUuid(lessonId)) return { ok: false, error: "ไม่พบบทเรียนนี้" };
+    const file = formData.get("file");
+    const kind = String(formData.get("kind") ?? "");
+    if (!(file instanceof File) || file.size === 0) return { ok: false, error: "กรุณาเลือกไฟล์" };
+    let ext: string;
+    if (kind === "image") {
+      ext = LESSON_IMAGE_TYPES[file.type];
+      if (!ext) return { ok: false, error: "รับเฉพาะรูป JPG, PNG หรือ WebP" };
+      if (file.size > LESSON_IMAGE_MAX_BYTES) return { ok: false, error: "รูปใหญ่เกิน 5 MB" };
+    } else if (kind === "pdf") {
+      if (file.type !== "application/pdf") return { ok: false, error: "รับเฉพาะไฟล์ PDF" };
+      if (file.size > LESSON_PDF_MAX_BYTES) return { ok: false, error: "ไฟล์ PDF ใหญ่เกิน 10 MB" };
+      ext = "pdf";
+    } else {
+      return { ok: false, error: "ชนิดไฟล์ไม่ถูกต้อง" };
+    }
+    const supabase = await createClient();
+    // ต้องเป็นบทเรียนที่ผู้ใช้มองเห็น (RLS ให้เห็นเฉพาะผู้จัดการคลังข้อสอบ)
+    const { data: lesson } = await supabase.from("lessons").select("id").eq("id", lessonId).maybeSingle();
+    if (!lesson) return { ok: false, error: DENIED };
+    const path = `${lessonId}/${randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from(LESSON_MEDIA_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+    if (error) return { ok: false, error: explainError(error) };
+    return { ok: true, path };
+  } catch (error) {
+    return { ok: false, error: explainError(error) };
+  }
 }

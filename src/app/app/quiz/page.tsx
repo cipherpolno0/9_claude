@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 
-import { UnderConstruction } from "@/components/under-construction";
 import { Button } from "@/components/ui/button";
 import { requireMenu } from "@/lib/auth/guards";
-import { COURSE_LEVELS, COURSE_LEVEL_LABEL } from "@/lib/quiz";
+import { ATTEMPT_KIND_LABEL, COURSE_LEVELS, COURSE_LEVEL_LABEL, QUIZ_BASE, courseSlug, durationText } from "@/lib/quiz";
+import { fetchMyQuizHistory } from "@/lib/quiz-learn-server";
 import { DEFAULT_MIN_QUESTIONS, fetchBankSummary } from "@/lib/quiz-server";
 import { findWorkspaceMenu } from "@/lib/site";
+import { thaiDateTime } from "@/lib/thai";
 import { cn } from "@/lib/utils";
 
 import { QuizNav } from "./quiz-nav";
@@ -25,8 +26,8 @@ export default async function WorkspaceQuizPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const ctx = await requireMenu(menu.href);
-  // ส่วนของผู้เรียน (บทเรียนและแบบทดสอบ) เปิดในบทถัดไป ตอนนี้มีเฉพาะส่วนของผู้จัดการคลังข้อสอบ
-  if (!ctx.canManageQuiz) return <UnderConstruction title={menu.title} description={menu.description} />;
+  // ผู้ที่ไม่ใช่ผู้จัดการคลังข้อสอบ (เช่น ผู้เรียน): ประวัติการเรียนของตนเอง และทางไปหน้าเรียน
+  if (!ctx.canManageQuiz) return <MyQuizHistory />;
 
   const onlyLow = (await searchParams).show === "low";
   const courses = await fetchBankSummary();
@@ -168,5 +169,69 @@ function Warn({ children }: { children: React.ReactNode }) {
       <AlertTriangle className="size-4" aria-hidden />
       {children}
     </span>
+  );
+}
+
+/** ประวัติการทำแบบทดสอบของผู้ที่ล็อกอิน (ผู้เรียนและบทบาทอื่นที่เห็นเมนูนี้) การเรียนทำที่หน้าสาธารณะ /quiz */
+async function MyQuizHistory() {
+  const history = await fetchMyQuizHistory();
+  return (
+    <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-10">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-primary sm:text-3xl">ประวัติการเรียนของฉัน</h1>
+          <p className="mt-1 text-muted-foreground">
+            แบบทดสอบที่ท่านทำขณะเข้าสู่ระบบ (ก่อนเรียน หลังเรียน และทดสอบรวมทั้งวิชา) เรียงจากล่าสุด
+          </p>
+        </div>
+        <Button asChild>
+          <Link href={QUIZ_BASE}>ไปหน้าเรียนและทำแบบทดสอบ</Link>
+        </Button>
+      </div>
+      {history.length === 0 ? (
+        <p className="mt-6 rounded-xl border bg-card p-5 text-muted-foreground" data-testid="history-empty">
+          ยังไม่มีประวัติ เริ่มเรียนได้ที่หน้า คลังข้อสอบ ของเว็บไซต์ ระบบจะเก็บผลไว้ที่นี่เมื่อท่านส่งคำตอบขณะเข้าสู่ระบบ
+        </p>
+      ) : (
+        <div className="mt-6 overflow-x-auto rounded-xl border bg-card" data-testid="quiz-history">
+          <table className="w-full min-w-[44rem] border-collapse text-left">
+            <thead>
+              <tr className="border-b bg-secondary">
+                <th scope="col" className="px-4 py-2">วันที่ส่ง</th>
+                <th scope="col" className="px-4 py-2">รายวิชา / หน่วย</th>
+                <th scope="col" className="px-4 py-2">ชนิด</th>
+                <th scope="col" className="px-4 py-2 text-right">คะแนน</th>
+                <th scope="col" className="px-4 py-2">เวลาที่ใช้</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((h) => (
+                <tr key={h.id} className="border-b last:border-b-0">
+                  <td className="px-4 py-2 whitespace-nowrap">{thaiDateTime(h.submitted_at)}</td>
+                  <td className="px-4 py-2">
+                    {h.course_name}
+                    {h.unit_name ? (
+                      <Link
+                        href={`${QUIZ_BASE}/${courseSlug(h)}/${h.unit_id}`}
+                        className="block text-sm text-primary underline underline-offset-4"
+                      >
+                        {h.unit_name}
+                      </Link>
+                    ) : null}
+                  </td>
+                  <td className="px-4 py-2">{ATTEMPT_KIND_LABEL[h.kind]}</td>
+                  <td className="px-4 py-2 text-right font-semibold">
+                    <Link href={`${QUIZ_BASE}/attempt/${h.id}`} className="text-primary underline underline-offset-4">
+                      {n(h.score)}/{n(h.total)}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap">{durationText(h.duration_seconds)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }

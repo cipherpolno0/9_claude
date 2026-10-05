@@ -14,6 +14,7 @@ import {
   type CourseStage,
   type CourseSubject,
   type Difficulty,
+  type Lesson,
   type Question,
   type QuestionStatus,
   type Unit,
@@ -114,6 +115,7 @@ export async function fetchQuestionYears(): Promise<number[]> {
 export type QuestionDetail = Question & {
   courses: Pick<Course, "code" | "name"> | null;
   units: Pick<Unit, "name" | "is_active"> | null;
+  lessons: Pick<Lesson, "title" | "is_active"> | null;
 };
 
 /** คืน null ถ้าไม่พบ หรือผู้ใช้ไม่ใช่ผู้จัดการคลังข้อสอบ */
@@ -122,7 +124,7 @@ export async function fetchQuestion(id: string): Promise<QuestionDetail | null> 
   const supabase = await createClient();
   const { data } = await supabase
     .from("questions")
-    .select(`${QUESTION_COLUMNS}, courses(code, name), units(name, is_active)`)
+    .select(`${QUESTION_COLUMNS}, courses(code, name), units(name, is_active), lessons(title, is_active)`)
     .eq("id", id)
     .maybeSingle();
   return (data as unknown as QuestionDetail | null) ?? null;
@@ -211,3 +213,67 @@ export async function fetchBankSummary(): Promise<BankCourse[]> {
 
 /** ค่าเริ่มต้นของเกณฑ์เตือน ถ้าอ่านค่าตั้งไม่ได้ */
 export const DEFAULT_MIN_QUESTIONS = 20;
+
+// ------------------------------------------------------------------
+// บทเรียน (หน้าแก้ไขของผู้จัดการคลังข้อสอบ)
+// ------------------------------------------------------------------
+
+const LESSON_COLUMNS = "id, unit_id, title, blocks, sort_order, status, published_at, is_active";
+
+/** บทเรียนของหน่วยเดียว (รวมที่ปิดใช้งาน) เรียงตามลำดับ */
+export async function fetchLessons(unitId: string): Promise<Lesson[]> {
+  if (!isUuid(unitId)) return [];
+  const supabase = await createClient();
+  const { data } = await supabase.from("lessons").select(LESSON_COLUMNS).eq("unit_id", unitId).order("sort_order").order("title");
+  return (data as Lesson[] | null) ?? [];
+}
+
+export type LessonOption = { id: string; unit_id: string; title: string };
+
+/** บทเรียนที่ใช้งานของทุกหน่วย (ตัวเลือกของช่อง บทเรียนที่เกี่ยวข้อง ในฟอร์มข้อสอบ) */
+export async function fetchLessonOptions(): Promise<LessonOption[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("lessons")
+    .select("id, unit_id, title")
+    .eq("is_active", true)
+    .order("sort_order")
+    .order("title")
+    .limit(5000);
+  return (data as LessonOption[] | null) ?? [];
+}
+
+export type LessonDetail = Lesson & {
+  units: { name: string; is_active: boolean; course_id: string; courses: Pick<Course, "name" | "has_mcq" | "level" | "stage" | "subject"> | null } | null;
+};
+
+export async function fetchLesson(id: string): Promise<LessonDetail | null> {
+  if (!isUuid(id)) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("lessons")
+    .select(`${LESSON_COLUMNS}, units(name, is_active, course_id, courses(name, has_mcq, level, stage, subject))`)
+    .eq("id", id)
+    .maybeSingle();
+  return (data as unknown as LessonDetail | null) ?? null;
+}
+
+/** จำนวนบทเรียนต่อหน่วยของรายวิชา (ที่ใช้งาน): รวม และที่เผยแพร่แล้ว */
+export async function fetchLessonCounts(courseId: string): Promise<Map<string, { total: number; published: number }>> {
+  const counts = new Map<string, { total: number; published: number }>();
+  if (!isUuid(courseId)) return counts;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("lessons")
+    .select("unit_id, status, units!inner(course_id)")
+    .eq("units.course_id", courseId)
+    .eq("is_active", true)
+    .limit(5000);
+  for (const row of (data as { unit_id: string; status: string }[] | null) ?? []) {
+    const c = counts.get(row.unit_id) ?? { total: 0, published: 0 };
+    c.total += 1;
+    if (row.status === "published") c.published += 1;
+    counts.set(row.unit_id, c);
+  }
+  return counts;
+}
