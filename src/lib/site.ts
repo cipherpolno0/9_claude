@@ -2,6 +2,7 @@ import {
   Archive,
   BookOpenCheck,
   ClipboardList,
+  FileCheck,
   FileSpreadsheet,
   LayoutDashboard,
   Map as MapIcon,
@@ -227,6 +228,13 @@ export const adminMenu: AdminMenuItem[] = [
     href: "/app/admin/education-positions",
     description: "ประเภทตำแหน่งของ จศป. แยกตามแท่ง: แผนกธรรม แผนกบาลี แผนกสามัญ ปริยัตินิเทศก์",
     icon: GraduationCap,
+    adminOnly: true,
+  },
+  {
+    title: "รายการเอกสารของคำขอ",
+    href: "/app/admin/request-documents",
+    description: "เอกสารที่ต้องแนบกับคำขอจัดตั้งและคำขอยุบสำนักเรียน สำนักศาสนศึกษา ตามระเบียบ",
+    icon: FileCheck,
     adminOnly: true,
   },
   {

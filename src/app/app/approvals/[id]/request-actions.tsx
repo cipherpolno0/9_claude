@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -82,6 +83,7 @@ export function RequesterActions({
   title,
   detail,
   extraPayload,
+  editHref,
 }: {
   requestId: string;
   status: "pending" | "returned";
@@ -89,6 +91,8 @@ export function RequesterActions({
   detail: string;
   /** ข้อมูลเฉพาะของชนิดคำขอที่ต้องคงไว้เมื่อส่งใหม่ (เช่น รายการที่ขอแก้ไขของคำขอแก้ไขประวัติ) */
   extraPayload?: Record<string, unknown>;
+  /** คำขอที่มีฟอร์มแก้ไขของตนเอง: เมื่อถูกส่งกลับ ให้ไปแก้ไขที่หน้านี้แทนช่อง เรื่อง และ รายละเอียด */
+  editHref?: string;
 }) {
   const router = useRouter();
   const [newTitle, setNewTitle] = useState(title);
@@ -110,7 +114,11 @@ export function RequesterActions({
   return (
     <div className="flex flex-col gap-3">
       {flash ? <InfoText>{flash}</InfoText> : null}
-      {status === "returned" ? (
+      {status === "returned" && editHref ? (
+        <p className="text-muted-foreground">
+          คำขอถูกส่งกลับให้แก้ไข อ่านความเห็นของผู้พิจารณาในหัวข้อ สถานะการพิจารณา แล้วแก้ไขข้อมูลหรือแนบเอกสารเพิ่ม จากนั้นส่งใหม่
+        </p>
+      ) : status === "returned" ? (
         <>
           <div className="flex flex-col gap-1">
             <Label htmlFor="resubmit-title">เรื่อง</Label>
@@ -131,7 +139,11 @@ export function RequesterActions({
       )}
       <ErrorText>{error}</ErrorText>
       <div className="flex flex-wrap gap-2">
-        {status === "returned" ? (
+        {status === "returned" && editHref ? (
+          <Button asChild>
+            <Link href={editHref}>แก้ไขคำขอแล้วส่งใหม่</Link>
+          </Button>
+        ) : status === "returned" ? (
           <Button
             disabled={pending}
             onClick={() => run(() => resubmitRequest({ requestId, title: newTitle, payload: { ...extraPayload, detail: newDetail } }))}

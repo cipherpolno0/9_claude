@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "แก้ไขสถานที่
 export const dynamic = "force-dynamic";
 
 export default async function EditPlacePage({ params }: { params: Promise<{ id: string }> }) {
-  await requireMenu("/app/places");
+  const ctx = await requireMenu("/app/places");
   const { id } = await params;
   const place = await fetchPlace(id);
   if (!place) notFound();
@@ -40,6 +40,7 @@ export default async function EditPlacePage({ params }: { params: Promise<{ id: 
         units={units}
         provinces={provinces}
         area={{ districts, subdistricts }}
+        isAdmin={ctx.isAdmin}
         parent={
           place.parent_place_id
             ? { id: place.parent_place_id, label: place.parent_name ?? "", detail: `รหัส ${place.parent_code ?? ""}` }

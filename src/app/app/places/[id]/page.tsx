@@ -10,14 +10,7 @@ import { HistoryList } from "@/components/record-history";
 import { Button } from "@/components/ui/button";
 import { requireMenu } from "@/lib/auth/guards";
 import { SECT_LABEL, type Sect } from "@/lib/org-units";
-import {
-  PLACE_FIELD_LABEL,
-  PLACE_STATUS_LABEL,
-  PLACE_TYPE_LABEL,
-  placeAddress,
-  type PlaceStatus,
-  type PlaceType,
-} from "@/lib/places";
+import { PLACE_FIELD_LABEL, PLACE_STATUS_LABEL, PLACE_TYPE_LABEL, placeAddress, type PlaceStatus, type PlaceType, needsParentTemple } from "@/lib/places";
 import { canEditPlace, fetchChildPlaces, fetchPlace, fetchPlaceHistory } from "@/lib/places-server";
 import { thaiDate } from "@/lib/thai";
 import { cn } from "@/lib/utils";
@@ -87,6 +80,11 @@ export default async function PlacePage({
                 แก้ไขข้อมูล
               </Link>
             </Button>
+            {needsParentTemple(place.place_type) && place.is_active && place.status !== "dissolved" ? (
+              <Button asChild variant="outline">
+                <Link href={`/app/requests/new?type=dissolve&place=${place.id}`}>ยื่นคำขอยุบ</Link>
+              </Button>
+            ) : null}
             <PlaceActiveButton placeId={place.id} isActive={place.is_active} />
           </div>
         ) : null}

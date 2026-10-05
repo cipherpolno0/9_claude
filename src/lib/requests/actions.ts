@@ -1,8 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { explainError, type ActionResult } from "@/lib/errors";
+import { REGISTRY_TAG } from "@/lib/registry";
 import { createClient } from "@/lib/supabase/server";
 
 import type { Decision } from "./labels";
@@ -11,6 +12,7 @@ function refresh(requestId?: string) {
   revalidatePath("/app");
   revalidatePath("/app/approvals");
   revalidatePath("/app/admin/demo");
+  revalidatePath("/app/requests");
   if (requestId) revalidatePath(`/app/approvals/${requestId}`);
 }
 
@@ -46,6 +48,11 @@ export async function decideRequest(input: {
   });
   if (error) return { ok: false, error: explainError(error) };
   refresh(input.requestId);
+  if (input.decision === "approved") {
+    // การอนุมัติขั้นสุดท้ายของคำขอจัดตั้ง-ยุบสำนัก เปลี่ยนทะเบียนสถานที่ จึงล้างแคชของหน้าทะเบียนและหน้าสาธารณะด้วย
+    revalidatePath("/app/places");
+    revalidateTag(REGISTRY_TAG, { expire: 0 });
+  }
   return { ok: true, message: "บันทึกผลการพิจารณาแล้ว" };
 }
 

@@ -1,17 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Printer } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { Attachments } from "@/components/attachments";
 import { ErrorText } from "@/components/form";
+import { PlaceRequestSummary } from "@/components/place-request-summary";
 import { ProfileEditSummary } from "@/components/profile-edit-summary";
+import { RequestDocumentList } from "@/components/request-document-list";
 import { RequestTimeline } from "@/components/request-timeline";
 import { StatusRequestSummary } from "@/components/status-request-summary";
+import { Button } from "@/components/ui/button";
 import { requireWorkspace } from "@/lib/auth/guards";
+import { DEFAULT_STEP_DAYS, isPlaceRequestType, stepDeadline } from "@/lib/place-requests";
+import { fetchRequestDocuments } from "@/lib/place-requests-server";
 import { EVENT_LABEL } from "@/lib/requests/labels";
 import { fetchRequestDetail } from "@/lib/requests/queries";
 import { isNoticeType, isStatusType } from "@/lib/status";
-import { thaiDateTime } from "@/lib/thai";
+import { thaiDate, thaiDateTime } from "@/lib/thai";
 
 import { DecisionForm, RequesterActions } from "./request-actions";
 
@@ -37,17 +43,35 @@ export default async function RequestDetailPage({
   const statusRequest = isStatusType(request.type_key);
   const notice = isNoticeType(request.type_key);
   const uploadFailed = (await searchParams).upload === "failed";
+  // คำขอจัดตั้งและยุบสำนัก (ระบบที่ 4): มีรายการเอกสาร กำหนดเวลาพิจารณา แบบพิมพ์ และฟอร์มแก้ไขของตนเอง
+  const placeRequest = isPlaceRequestType(request.type_key) ? request.type_key : null;
+  const documents = placeRequest ? await fetchRequestDocuments(request.id) : [];
+  const deadline = placeRequest
+    ? stepDeadline(request.pendingSince, ctx.settings.place_request_step_days ?? DEFAULT_STEP_DAYS)
+    : null;
+  const open = request.status === "pending" || request.status === "returned";
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">
       <p>
-        <Link href="/app/approvals" className="text-primary underline underline-offset-4">
-          ← งานรอพิจารณาและคำขอของท่าน
+        <Link href={placeRequest ? "/app/requests" : "/app/approvals"} className="text-primary underline underline-offset-4">
+          {placeRequest ? "← คำขอ" : "← งานรอพิจารณาและคำขอของท่าน"}
         </Link>
       </p>
-      <h1 className="mt-2 text-2xl font-bold text-primary sm:text-3xl">{request.title}</h1>
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+        <h1 className="text-2xl font-bold text-primary sm:text-3xl">{request.title}</h1>
+        {placeRequest ? (
+          <Button asChild variant="outline">
+            <a href={`/app/requests/${request.id}/print`} target="_blank" rel="noopener">
+              <Printer aria-hidden />
+              พิมพ์แบบคำขอ
+            </a>
+          </Button>
+        ) : null}
+      </div>
       <p className="mt-1 text-muted-foreground">
-        เลขที่ {request.request_no} · หน่วยที่ยื่น: {request.org_unit_name} · ผู้ยื่น: {request.requester_name}
+        เลขที่ {request.request_no} · {placeRequest ? "เขตคณะสงฆ์" : "หน่วยที่ยื่น"}: {request.org_unit_name} · ผู้ยื่น:{" "}
+        {request.requester_name}
       </p>
 
       {uploadFailed ? (
@@ -63,6 +87,18 @@ export default async function RequestDetailPage({
             typeKey={request.type_key}
             payload={request.payload}
             applied={request.status === "approved"}
+          />
+        </div>
+      ) : null}
+
+      {placeRequest ? (
+        <div className="mt-6 rounded-xl border bg-card p-5">
+          <h2 className="mb-2 text-xl font-bold text-primary">รายละเอียดคำขอ</h2>
+          <PlaceRequestSummary
+            typeKey={placeRequest}
+            payload={request.payload}
+            applied={request.status === "approved"}
+            canOpenPlace={ctx.allowedMenus.includes("/app/places")}
           />
         </div>
       ) : null}
@@ -86,13 +122,29 @@ export default async function RequestDetailPage({
 
       {detail ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
-          <h2 className="text-xl font-bold text-primary">{statusRequest ? "เหตุผล" : "รายละเอียด"}</h2>
+          <h2 className="text-xl font-bold text-primary">{statusRequest || placeRequest ? "เหตุผล" : "รายละเอียด"}</h2>
           <p className="mt-2 whitespace-pre-wrap">{detail}</p>
         </div>
       ) : null}
 
       <div className="mt-6 rounded-xl border bg-card p-5">
         <h2 className="text-xl font-bold text-primary">สถานะการพิจารณา</h2>
+        {deadline ? (
+          <p className="mt-2" data-testid="step-deadline">
+            ขั้นที่ {request.current_step} รอพิจารณาตั้งแต่ {thaiDate(deadline.since, "short")} · ครบกำหนด{" "}
+            {thaiDate(deadline.dueAt, "short")}{" "}
+            {deadline.overdueDays > 0 ? (
+              <span
+                data-testid="overdue-badge"
+                className="rounded border border-destructive px-2 py-0.5 text-sm font-semibold text-destructive"
+              >
+                เกินกำหนด {deadline.overdueDays} วัน
+              </span>
+            ) : (
+              <span className="text-muted-foreground">(เหลือ {deadline.daysLeft} วัน)</span>
+            )}
+          </p>
+        ) : null}
         <div className="mt-3">
           <RequestTimeline data={request.timeline} approvedLabel={notice ? "รับทราบ" : undefined} />
         </div>
@@ -123,21 +175,32 @@ export default async function RequestDetailPage({
               title={request.title}
               detail={detail}
               extraPayload={request.type_key === "profile_edit" || statusRequest ? request.payload : undefined}
+              editHref={placeRequest ? `/app/requests/${request.id}/edit` : undefined}
             />
           </div>
         </div>
       ) : null}
 
       <div className="mt-6 rounded-xl border bg-card p-5">
-        <h2 className="text-xl font-bold text-primary">ไฟล์แนบ</h2>
+        <h2 className="text-xl font-bold text-primary">{placeRequest ? "เอกสารแนบ" : "ไฟล์แนบ"}</h2>
         <div className="mt-3">
-          <Attachments
-            entityTable="requests"
-            entityId={request.id}
-            orgUnitId={request.org_unit_id}
-            currentUserId={ctx.user.id}
-            canUpload={isRequester && (request.status === "pending" || request.status === "returned")}
-          />
+          {placeRequest ? (
+            <RequestDocumentList
+              requestId={request.id}
+              orgUnitId={request.org_unit_id}
+              currentUserId={ctx.user.id}
+              canUpload={isRequester && open}
+              documents={documents}
+            />
+          ) : (
+            <Attachments
+              entityTable="requests"
+              entityId={request.id}
+              orgUnitId={request.org_unit_id}
+              currentUserId={ctx.user.id}
+              canUpload={isRequester && open}
+            />
+          )}
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Download, Paperclip, X } from "lucide-react";
 
@@ -11,6 +12,7 @@ import { ATTACHMENT_ACCEPT, type Attachment } from "@/lib/attachments/config";
 /**
  * ไฟล์แนบกลาง: แสดงรายการ อัปโหลด ดาวน์โหลด และเอาออก ของรายการใดก็ได้
  * ใช้: <Attachments entityTable="requests" entityId={id} orgUnitId={unitId} currentUserId={uid} />
+ * เอกสารตามรายการของคำขอ: ส่ง docTypeId (รหัสรายการ = เฉพาะไฟล์ของรายการนั้น, null = เฉพาะไฟล์ที่ไม่อยู่ในรายการ)
  */
 export function Attachments({
   entityTable,
@@ -20,6 +22,10 @@ export function Attachments({
   canUpload = true,
   canRemoveAny = false,
   initial = [],
+  docTypeId,
+  refreshOnChange = false,
+  emptyText = "ยังไม่มีไฟล์แนบ",
+  inputLabel = "เลือกไฟล์แนบ",
 }: {
   entityTable: string;
   entityId: string;
@@ -30,23 +36,35 @@ export function Attachments({
   /** เอาไฟล์ของผู้อื่นออกได้ด้วย (ใช้เมื่อสิทธิ์ของรายการนั้นอนุญาต ฐานข้อมูลตรวจซ้ำอีกชั้น) */
   canRemoveAny?: boolean;
   initial?: Attachment[];
+  /** ไม่ส่ง = ไฟล์ทั้งหมดของรายการ / รหัสรายการเอกสาร = เฉพาะรายการนั้น และไฟล์ที่อัปโหลดจะถูกผูกกับรายการนั้น / null = เฉพาะไฟล์ที่ไม่ผูกรายการ */
+  docTypeId?: string | null;
+  /** โหลดข้อมูลของหน้าใหม่หลังแนบหรือเอาไฟล์ออก (ใช้เมื่อหน้าแสดงสรุปที่ขึ้นกับไฟล์แนบ) */
+  refreshOnChange?: boolean;
+  emptyText?: string;
+  inputLabel?: string;
 }) {
+  const router = useRouter();
   const [items, setItems] = useState<Attachment[]>(initial);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const reload = async () => setItems(await listAttachments(entityTable, entityId));
+  const pick = (rows: Attachment[]) =>
+    docTypeId === undefined ? rows : rows.filter((r) => (r.doc_type_id ?? null) === docTypeId);
+  const reload = async () => {
+    setItems(pick(await listAttachments(entityTable, entityId)));
+    if (refreshOnChange) router.refresh();
+  };
 
   useEffect(() => {
     let alive = true;
     listAttachments(entityTable, entityId).then((rows) => {
-      if (alive) setItems(rows);
+      if (alive) setItems(docTypeId === undefined ? rows : rows.filter((r) => (r.doc_type_id ?? null) === docTypeId));
     });
     return () => {
       alive = false;
     };
-  }, [entityTable, entityId]);
+  }, [entityTable, entityId, docTypeId]);
 
   const upload = (file: File) => {
     const formData = new FormData();
@@ -54,6 +72,7 @@ export function Attachments({
     formData.set("entity_table", entityTable);
     formData.set("entity_id", entityId);
     if (orgUnitId) formData.set("org_unit_id", orgUnitId);
+    if (docTypeId) formData.set("doc_type_id", docTypeId);
     setError(null);
     startTransition(async () => {
       const result = await uploadAttachment(formData);
@@ -85,7 +104,7 @@ export function Attachments({
   return (
     <div className="flex flex-col gap-2" data-testid="attachments">
       {items.length === 0 ? (
-        <p className="text-muted-foreground">ยังไม่มีไฟล์แนบ</p>
+        <p className="text-muted-foreground">{emptyText}</p>
       ) : (
         <ul className="flex flex-col gap-1">
           {items.map((a) => (
@@ -113,7 +132,7 @@ export function Attachments({
             ref={inputRef}
             type="file"
             accept={ATTACHMENT_ACCEPT}
-            aria-label="เลือกไฟล์แนบ"
+            aria-label={inputLabel}
             disabled={pending}
             onChange={(e) => {
               const file = e.target.files?.[0];

@@ -12,7 +12,7 @@ export async function listAttachments(entityTable: string, entityId: string): Pr
   const supabase = await createClient();
   const { data } = await supabase
     .from("attachments")
-    .select("id, file_name, mime_type, size_bytes, uploaded_by, created_at")
+    .select("id, file_name, mime_type, size_bytes, uploaded_by, created_at, doc_type_id")
     .eq("entity_table", entityTable)
     .eq("entity_id", entityId)
     .eq("is_active", true)
@@ -20,13 +20,14 @@ export async function listAttachments(entityTable: string, entityId: string): Pr
   return (data as Attachment[] | null) ?? [];
 }
 
-/** อัปโหลดไฟล์แนบ: formData ต้องมี file, entity_table, entity_id และ org_unit_id (ถ้ามี) */
+/** อัปโหลดไฟล์แนบ: formData ต้องมี file, entity_table, entity_id และ org_unit_id (ถ้ามี) doc_type_id = รายการเอกสารของคำขอ (ถ้ามี) */
 export async function uploadAttachment(formData: FormData): Promise<ActionResult> {
   try {
     const file = formData.get("file");
     const entityTable = String(formData.get("entity_table") ?? "");
     const entityId = String(formData.get("entity_id") ?? "");
     const orgUnitId = String(formData.get("org_unit_id") ?? "") || null;
+    const docTypeId = String(formData.get("doc_type_id") ?? "");
 
     if (!(file instanceof File) || file.size === 0) return { ok: false, error: "กรุณาเลือกไฟล์" };
     const ext = ATTACHMENT_TYPES[file.type];
@@ -55,6 +56,7 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
       file_name: file.name.slice(0, 200),
       mime_type: file.type,
       size_bytes: file.size,
+      ...(/^[0-9a-f-]{36}$/i.test(docTypeId) ? { doc_type_id: docTypeId } : {}),
     });
     if (error) {
       await supabase.storage.from(ATTACHMENT_BUCKET).remove([path]);

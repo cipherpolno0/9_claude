@@ -19,4 +19,6 @@ export type Attachment = {
   size_bytes: number;
   uploaded_by: string;
   created_at: string;
+  /** รายการเอกสารของคำขอที่ไฟล์นี้แนบให้ (ว่าง = ไฟล์แนบทั่วไป) */
+  doc_type_id: string | null;
 };

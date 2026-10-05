@@ -34,6 +34,7 @@ export function PlaceForm({
   area,
   parent,
   responsible,
+  isAdmin = false,
 }: {
   type: PlaceType;
   place?: Place;
@@ -43,10 +44,14 @@ export function PlaceForm({
   area?: Pick<CivilAreaValue, "districts" | "subdistricts">;
   parent?: PickerItem<TemplePick> | null;
   responsible?: PickerItem | null;
+  /** ผู้ดูแลระบบแก้สถานะของสำนักเป็น ยุบ ได้โดยตรง ผู้อื่นต้องยื่นคำขอยุบ */
+  isAdmin?: boolean;
 }) {
   const { state, onSubmit, pending } = useServerForm(savePlace);
   const samnak = needsParentTemple(type);
   const typeLabel = PLACE_TYPE_LABEL[type];
+  // สำนักที่มีอยู่แล้วและยังไม่ถูกยุบ: เปลี่ยนเป็น ยุบ ได้เฉพาะผ่านคำขอยุบ (ฐานข้อมูลบังคับด้วย trigger places_dissolve_guard)
+  const dissolveByRequest = samnak && Boolean(place) && place?.status !== "dissolved" && !isAdmin;
 
   // ค่าเริ่มต้นของ นิกาย เขตคณะสงฆ์ และที่ตั้ง เปลี่ยนตามวัดที่ตั้งเมื่อเลือกวัด (เปลี่ยน key เพื่อให้ช่องรับค่าใหม่)
   const [sect, setSect] = useState<Sect | "">(place?.sect ?? "");
@@ -138,11 +143,16 @@ export function PlaceForm({
             <Label htmlFor="status">สถานะ</Label>
             <select id="status" name="status" className={selectClass} defaultValue={place?.status ?? "open"}>
               {PLACE_STATUSES.map((s) => (
-                <option key={s} value={s}>
+                <option key={s} value={s} disabled={s === "dissolved" && dissolveByRequest}>
                   {PLACE_STATUS_LABEL[s]}
                 </option>
               ))}
             </select>
+            {dissolveByRequest ? (
+              <p className="text-sm text-muted-foreground" data-testid="dissolve-hint">
+                การยุบสำนักต้องยื่นคำขอยุบที่เมนู คำขอ เมื่ออนุมัติขั้นสุดท้าย ระบบจะเปลี่ยนสถานะเป็น ยุบ ให้เอง
+              </p>
+            ) : null}
           </div>
           <ThaiDateInput label="วันที่จัดตั้ง" name="established_on" defaultValue={place?.established_on} />
         </div>

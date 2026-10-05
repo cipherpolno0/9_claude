@@ -40,6 +40,10 @@ export type RequestDetail = {
   timeline: TimelineData;
   events: { id: number; action: string; comment: string | null; created_at: string; actor_name: string }[];
   canDecide: boolean;
+  /** เวลาที่ขั้นปัจจุบันเริ่มรอพิจารณา (ว่าง = ไม่มีขั้นที่รออยู่) */
+  pendingSince: string | null;
+  submitted_at: string;
+  decided_at: string | null;
 };
 
 /** คำขอ 1 รายการพร้อมเส้นเวลา (คืน null ถ้าไม่พบหรือไม่มีสิทธิ์เห็น) */
@@ -73,7 +77,7 @@ export async function fetchRequestDetail(id: string): Promise<RequestDetail | nu
   const [stepsRes, eventsRes, peopleRes] = await Promise.all([
     supabase
       .from("request_steps")
-      .select("id, step_no, level, status, comment, decided_at, decided_by, org_units(name)")
+      .select("id, step_no, level, status, comment, decided_at, decided_by, pending_since, org_units(name)")
       .eq("request_id", id)
       .order("step_no"),
     supabase
@@ -96,6 +100,7 @@ export async function fetchRequestDetail(id: string): Promise<RequestDetail | nu
     comment: string | null;
     decided_at: string | null;
     decided_by: string | null;
+    pending_since: string | null;
     org_units: { name: string } | null;
   }[];
 
@@ -119,6 +124,9 @@ export async function fetchRequestDetail(id: string): Promise<RequestDetail | nu
     requester_name: names.get(row.requester_id) ?? "-",
     org_unit_name: row.org_units?.name ?? "-",
     canDecide,
+    pendingSince: row.status === "pending" ? (pending?.pending_since ?? null) : null,
+    submitted_at: row.submitted_at,
+    decided_at: row.decided_at,
     timeline: {
       request_no: row.request_no,
       type_name: row.request_types?.name ?? "",

@@ -5,6 +5,7 @@ import { PendingRequestsBox } from "@/components/pending-requests-box";
 import { requireWorkspace } from "@/lib/auth/guards";
 import { fullName } from "@/lib/auth/session";
 import { LEVEL_LABEL, SECT_LABEL, type OrgLevel, type Sect } from "@/lib/org-units";
+import { remindOverduePlaceRequests } from "@/lib/place-requests-server";
 import { fetchMyPendingRequests } from "@/lib/requests/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,7 +34,12 @@ export default async function DashboardPage({
   const { denied } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data }, pendingRequests] = await Promise.all([supabase.rpc("my_org_units"), fetchMyPendingRequests()]);
+  // แจ้งเตือนผู้พิจารณาของคำขอจัดตั้ง-ยุบสำนักที่เกินกำหนด (ไม่เกินวันละ 1 ครั้งต่อขั้น) ทุกครั้งที่มีผู้เปิดแดชบอร์ด
+  const [{ data }, pendingRequests] = await Promise.all([
+    supabase.rpc("my_org_units"),
+    fetchMyPendingRequests(),
+    remindOverduePlaceRequests(),
+  ]);
   const myUnits = (data as MyUnit[] | null) ?? [];
   const seesAll = myUnits.some((u) => u.all_units);
 
