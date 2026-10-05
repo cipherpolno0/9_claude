@@ -1,4 +1,4 @@
-// สร้างบัญชีทดสอบ 6 บัญชี  *** ใช้กับข้อมูลทดสอบเท่านั้น ***
+// สร้างบัญชีทดสอบ 7 บัญชี  *** ใช้กับข้อมูลทดสอบเท่านั้น ***
 // วิธีรัน: npm run seed:test-users   (ต้องมีไฟล์ .env.local ที่เติม SUPABASE_SECRET_KEY แล้ว
 // และรันข้อมูลทดสอบของบทที่ 2 ไว้แล้ว)
 // รหัสผ่านจะถูกสุ่มใหม่ทุกครั้งที่รัน และแสดงบนจอนี้เท่านั้น
@@ -20,6 +20,7 @@ const ACCOUNTS = [
   { email: "test.chief.amphoe@example.com", first: "(ทดสอบ) เจ้าคณะอำเภอ", role: "chief", unit: "TEST-M-R1-P1-D1" },
   { email: "test.secretary.changwat@example.com", first: "(ทดสอบ) เลขาฯ จังหวัด", role: "secretary", unit: "TEST-M-R1-P1" },
   { email: "test.jsp@example.com", first: "(ทดสอบ) จศป.", role: "education_staff", unit: "TEST-M-R1-P1-D1-S1" },
+  { email: "test.quiz@example.com", first: "(ทดสอบ) ผู้จัดการคลังข้อสอบ", role: "quiz_manager", unit: null },
   { email: "test.central@example.com", first: "(ทดสอบ) เจ้าหน้าที่ส่วนกลาง", role: "central_staff", unit: null },
   { email: "test.admin@example.com", first: "(ทดสอบ) ผู้ดูแลระบบ", role: "admin", unit: null },
 ];

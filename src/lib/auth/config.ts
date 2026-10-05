@@ -61,3 +61,6 @@ export const scopeRank = (scope: PersonnelScope) => PERSONNEL_SCOPES.indexOf(sco
 
 /** บทบาทที่เข้าหน้า "บัญชีผู้ใช้" และ "ทบทวนสิทธิ์" ได้ (ผู้อนุมัติ) */
 export const ACCOUNT_MANAGER_ROLES = ["admin", "central_staff", "chief", "deputy_chief", "secretary"];
+
+/** บทบาทที่จัดการคลังข้อสอบได้ (ต้องตรงกับฟังก์ชัน can_manage_quiz ในฐานข้อมูล ซึ่งเป็นตัวตัดสินสิทธิ์จริง) */
+export const QUIZ_MANAGER_ROLES: readonly string[] = ["quiz_manager", "admin"];

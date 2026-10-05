@@ -24,7 +24,7 @@ export async function setRoleMfa(key: string, required: boolean): Promise<Action
 
 export async function updateSetting(key: string, value: number): Promise<ActionResult> {
   if (!Number.isInteger(value) || value < 1 || value > 3650) {
-    return { ok: false, error: "กรุณากรอกจำนวนวันเป็นเลขจำนวนเต็ม 1 ถึง 3650" };
+    return { ok: false, error: "กรุณากรอกเป็นเลขจำนวนเต็ม 1 ถึง 3650" };
   }
   const supabase = await createClient();
   const { data, error } = await supabase.from("app_settings").update({ value_int: value }).eq("key", key).select("key");

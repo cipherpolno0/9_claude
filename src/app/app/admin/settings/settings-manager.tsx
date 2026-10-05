@@ -89,7 +89,7 @@ export function SettingsManager({
       </div>
 
       <div className="rounded-xl border bg-card p-5">
-        <h2 className="text-xl font-bold text-primary">ค่าตั้ง (จำนวนวัน)</h2>
+        <h2 className="text-xl font-bold text-primary">ค่าตั้ง (ตัวเลข)</h2>
         <ul className="mt-3 flex flex-col gap-3">
           {settings.map((s) => (
             <li key={s.key}>

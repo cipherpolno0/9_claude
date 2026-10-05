@@ -36,6 +36,13 @@ export async function requireMenu(href: string): Promise<AuthContext> {
   return ctx;
 }
 
+/** หน้าจัดการคลังข้อสอบ: ต้องเห็นเมนู คลังข้อสอบ และเป็นผู้จัดการคลังข้อสอบหรือผู้ดูแลระบบ */
+export async function requireQuizManager(): Promise<AuthContext> {
+  const ctx = await requireMenu("/app/quiz");
+  if (!ctx.canManageQuiz) redirect("/app/quiz");
+  return ctx;
+}
+
 /** เฉพาะผู้ดูแลระบบ */
 export async function requireAdmin(): Promise<AuthContext> {
   const ctx = await requireWorkspace();
