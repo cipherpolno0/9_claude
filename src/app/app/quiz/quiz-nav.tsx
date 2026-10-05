@@ -7,6 +7,7 @@ const TABS = [
   { key: "questions", href: "/app/quiz/questions", label: "จัดการข้อสอบ" },
   { key: "courses", href: "/app/quiz/courses", label: "รายวิชาและหน่วยการเรียน" },
   { key: "lessons", href: "/app/quiz/lessons", label: "บทเรียน" },
+  { key: "stats", href: "/app/quiz/stats", label: "สถิติ" },
 ] as const;
 
 /** แถบหัวข้อของคลังข้อสอบ ใช้ทุกหน้าของผู้จัดการคลังข้อสอบ */

@@ -174,6 +174,14 @@ export default async function QuizUnitPage({ params }: Props) {
         ) : null}
       </ol>
 
+      {hasQuiz && preDone ? (
+        <p className="mt-6">
+          <Link href={`${base}/${state.unit_id}/result`} className="text-lg font-semibold text-primary underline underline-offset-4">
+            ดูสรุปผลของหน่วยนี้ (ก่อนเรียนเทียบหลังเรียน)
+          </Link>
+        </p>
+      ) : null}
+
       {hasQuiz && postDone && !postOpen ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
           <p className="font-semibold">ต้องการเรียนหน่วยนี้ใหม่ตั้งแต่ต้น?</p>

@@ -181,8 +181,13 @@ function Result({ attempt, questions, backHref }: { attempt: Attempt; questions:
         </div>
       ) : null}
 
-      <div>
-        <Button asChild variant={attempt.kind === "pre" ? "outline" : "default"} className="min-h-12 w-full px-6 text-lg sm:w-auto">
+      <div className="flex flex-wrap gap-3">
+        {attempt.kind === "post" ? (
+          <Button asChild className="min-h-12 w-full px-6 text-lg sm:w-auto">
+            <Link href={`${backHref}/result`}>ดูสรุปผลก่อนเรียนเทียบหลังเรียน</Link>
+          </Button>
+        ) : null}
+        <Button asChild variant={attempt.kind === "full" ? "default" : "outline"} className="min-h-12 w-full px-6 text-lg sm:w-auto">
           <Link href={backHref}>{attempt.unit_id ? "กลับไปหน้าหน่วยการเรียน" : "กลับไปหน้ารายวิชา"}</Link>
         </Button>
       </div>

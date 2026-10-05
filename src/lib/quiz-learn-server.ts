@@ -188,3 +188,75 @@ export async function fetchMyQuizHistory(): Promise<HistoryRow[]> {
   const { data } = await supabase.rpc("quiz_my_history", { p_limit: 200 });
   return (data as HistoryRow[] | null) ?? [];
 }
+
+// ------------------------------------------------------------------
+// ผลคะแนนและความคืบหน้า (บทที่ 14)
+// ------------------------------------------------------------------
+
+export type UnitResult = {
+  unit_id: string;
+  unit_name: string;
+  course_name: string;
+  level: CourseLevel;
+  stage: CourseStage;
+  subject: CourseSubject;
+  pre_id: string;
+  pre_score: number;
+  pre_total: number;
+  pre_submitted_at: string;
+  post_id: string | null;
+  post_score: number | null;
+  post_total: number | null;
+  post_submitted_at: string | null;
+  post_done_count: number;
+  best_post_score: number | null;
+  best_post_total: number | null;
+};
+
+/** สรุปผลของหน่วย: ก่อนเรียนครั้งล่าสุดที่ส่งแล้ว เทียบหลังเรียนครั้งล่าสุดของรอบนั้น (null = ยังไม่เคยส่งก่อนเรียน) */
+export async function fetchUnitResult(unitId: string): Promise<UnitResult | null> {
+  if (!isUuid(unitId)) return null;
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("quiz_unit_result", { p_unit: unitId, p_device: await quizDevice() });
+  return (data as UnitResult[] | null)?.[0] ?? null;
+}
+
+export type WeakLesson = {
+  /** null = ข้อที่ไม่ได้ผูกกับบทเรียน */
+  lesson_id: string | null;
+  title: string | null;
+  pre_asked: number;
+  pre_wrong: number;
+  post_asked: number;
+  post_wrong: number;
+};
+
+export async function fetchUnitWeakLessons(unitId: string): Promise<WeakLesson[]> {
+  if (!isUuid(unitId)) return [];
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("quiz_unit_weak_lessons", { p_unit: unitId, p_device: await quizDevice() });
+  return (data as WeakLesson[] | null) ?? [];
+}
+
+export type CourseProgress = {
+  course_id: string;
+  course_name: string;
+  level: CourseLevel;
+  stage: CourseStage;
+  subject: CourseSubject;
+  has_mcq: boolean;
+  unit_total: number;
+  unit_started: number;
+  unit_done: number;
+  post_avg_percent: number | null;
+  full_count: number;
+  full_best_percent: number | null;
+  last_activity: string | null;
+};
+
+/** ความคืบหน้าของผู้ที่ล็อกอินในทุกรายวิชาที่มีข้อสอบให้ทำ หรือที่เคยทำ */
+export async function fetchMyProgress(): Promise<CourseProgress[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("quiz_my_progress");
+  return (data as CourseProgress[] | null) ?? [];
+}

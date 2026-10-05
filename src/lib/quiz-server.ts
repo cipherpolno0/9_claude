@@ -277,3 +277,81 @@ export async function fetchLessonCounts(courseId: string): Promise<Map<string, {
   }
   return counts;
 }
+
+// ------------------------------------------------------------------
+// สถิติของผู้จัดการคลังข้อสอบ (บทที่ 14) ตัวเลขรวมเท่านั้น ไม่มีข้อมูลของผู้เรียนรายคน
+// ------------------------------------------------------------------
+
+export type StatsTotals = { takers: number; signed_in_takers: number; device_takers: number; attempts: number; open_attempts: number };
+
+export async function fetchStatsTotals(): Promise<StatsTotals> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("quiz_stats_totals");
+  const row = (data as Partial<StatsTotals>[] | null)?.[0];
+  return {
+    takers: Number(row?.takers ?? 0),
+    signed_in_takers: Number(row?.signed_in_takers ?? 0),
+    device_takers: Number(row?.device_takers ?? 0),
+    attempts: Number(row?.attempts ?? 0),
+    open_attempts: Number(row?.open_attempts ?? 0),
+  };
+}
+
+export type CourseStats = {
+  course_id: string;
+  course_name: string;
+  takers: number;
+  pre_count: number;
+  pre_avg: number | null;
+  post_count: number;
+  post_avg: number | null;
+  /** ผู้ที่ทำครบทั้งก่อนและหลังเรียนของหน่วยเดียวกัน (นับเป็นคู่ต่อหน่วย) */
+  pair_count: number;
+  pair_pre_avg: number | null;
+  pair_post_avg: number | null;
+  full_count: number;
+  full_avg: number | null;
+};
+
+export async function fetchCourseStats(): Promise<CourseStats[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("quiz_stats_courses");
+  if (error) throw error;
+  return (data as CourseStats[] | null) ?? [];
+}
+
+export type QuestionStats = {
+  question_id: string;
+  question_text: string;
+  course_name: string;
+  unit_name: string;
+  correct_choice: ChoiceKey;
+  status: QuestionStatus;
+  is_active: boolean;
+  shown: number;
+  correct: number;
+  correct_percent: number;
+  n_a: number;
+  n_b: number;
+  n_c: number;
+  n_d: number;
+  n_blank: number;
+  total_count: number;
+};
+
+/** สถิติรายข้อ เรียงจากร้อยละตอบถูกน้อยที่สุด (maxPercent = เฉพาะข้อที่ตอบถูกน้อยกว่าร้อยละนี้) */
+export async function fetchQuestionStats(options: { courseId: string | null; minShown: number; maxPercent: number | null; limit: number }) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("quiz_stats_questions", {
+    p_course: options.courseId && isUuid(options.courseId) ? options.courseId : null,
+    p_min_shown: options.minShown,
+    p_max_percent: options.maxPercent,
+    p_limit: options.limit,
+  });
+  if (error) throw error;
+  const rows = (data as QuestionStats[] | null) ?? [];
+  return { rows, total: Number(rows[0]?.total_count ?? 0) };
+}
+
+export const DEFAULT_PROBLEM_PERCENT = 20;
+export const DEFAULT_STATS_MIN_ANSWERS = 10;

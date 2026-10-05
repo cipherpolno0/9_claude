@@ -46,9 +46,16 @@ export default async function QuizCoursePage({ params }: Props) {
         {info.has_mcq ? "" : " (ข้อเขียน มีเฉพาะบทเรียน ไม่มีแบบทดสอบปรนัย)"}
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
-        {signedIn
-          ? "ท่านเข้าสู่ระบบอยู่ ระบบเก็บประวัติการเรียนไว้ในบัญชีของท่าน"
-          : "ท่านยังไม่ได้เข้าสู่ระบบ ความคืบหน้าจำไว้ในเครื่องนี้เท่านั้น"}
+        {signedIn ? (
+          <>
+            ท่านเข้าสู่ระบบอยู่ ระบบเก็บประวัติการเรียนไว้ในบัญชีของท่าน{" "}
+            <Link href={`${QUIZ_BASE}/my`} prefetch={false} className="font-semibold text-primary underline underline-offset-4">
+              ดูผลการเรียนของฉัน
+            </Link>
+          </>
+        ) : (
+          "ท่านยังไม่ได้เข้าสู่ระบบ ความคืบหน้าจำไว้ในเครื่องนี้เท่านั้น"
+        )}
       </p>
 
       <h2 className="mt-8 text-xl font-bold text-primary">เลือกหน่วยการเรียน</h2>

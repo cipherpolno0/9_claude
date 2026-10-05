@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { findPublicMenu } from "@/lib/site";
 
@@ -20,6 +21,12 @@ export default function QuizPage() {
       <div className="mt-6">
         <CoursePicker />
       </div>
+      <p className="mt-8">
+        <Link href="/quiz/my" prefetch={false} className="font-semibold text-primary underline underline-offset-4">
+          ผลการเรียนของฉัน
+        </Link>{" "}
+        <span className="text-muted-foreground">(ความคืบหน้า ประวัติ และกราฟพัฒนาการ สำหรับผู้ที่เข้าสู่ระบบ)</span>
+      </p>
     </section>
   );
 }
