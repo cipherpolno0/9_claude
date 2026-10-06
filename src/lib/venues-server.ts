@@ -24,7 +24,7 @@ export async function fetchAcademicYears(): Promise<AcademicYear[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("academic_years")
-    .select("id, year_be, starts_on, ends_on, is_current")
+    .select("id, year_be, starts_on, ends_on, is_current, request_deadline")
     .order("year_be", { ascending: false });
   return (data as AcademicYear[] | null) ?? [];
 }
@@ -270,4 +270,32 @@ export async function buildVenueReport(
       r.receiver_address || r.chair_address || "",
     ]),
   };
+}
+
+// ------------------------------------------------------------------
+// ประวัติการเปิด ปิด ย้ายของสนามสอบ (บันทึกโดยระบบเมื่อคำขอได้รับอนุมัติ อยู่ใต้ RLS ตามสิทธิ์ดูสนามสอบ)
+// ------------------------------------------------------------------
+
+export type VenueChange = {
+  id: string;
+  change_type: "open" | "close" | "move";
+  from_place_name: string;
+  to_place_name: string;
+  effective_year_be: number | null;
+  reason: string;
+  created_at: string;
+  request_id: string | null;
+  replacement: { id: string; name: string; code: string } | null;
+};
+
+export async function fetchVenueChanges(venueId: string): Promise<VenueChange[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("exam_venue_changes")
+    .select(
+      "id, change_type, from_place_name, to_place_name, effective_year_be, reason, created_at, request_id, replacement:replacement_venue_id(id, name, code)",
+    )
+    .eq("venue_id", venueId)
+    .order("created_at", { ascending: false });
+  return (data as unknown as VenueChange[] | null) ?? [];
 }

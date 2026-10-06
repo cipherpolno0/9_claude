@@ -5,7 +5,6 @@ import {
   PLACE_REQUEST_LABEL,
   SAMNAK_TYPE_LABEL,
   readPlaceRequestPayload,
-  type PlaceRequestType,
 } from "@/lib/place-requests";
 
 /** สรุปคำขอจัดตั้งหรือขอยุบสำนัก ในหน้ารายละเอียดคำขอ (เหตุผลแสดงแยกในหัวข้อ เหตุผล ของหน้ากลาง) */
@@ -15,7 +14,7 @@ export function PlaceRequestSummary({
   applied,
   canOpenPlace,
 }: {
-  typeKey: PlaceRequestType;
+  typeKey: "samnak_establish" | "samnak_dissolve";
   payload: Record<string, unknown>;
   /** อนุมัติขั้นสุดท้ายแล้ว */
   applied: boolean;

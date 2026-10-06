@@ -23,6 +23,13 @@ import {
 
 import { searchResponsiblePersons, searchTemples } from "../places/actions";
 import { resubmitPlaceRequest, searchSamnak, submitPlaceRequest } from "./actions";
+import {
+  LockedPick,
+  VenueChangeFields,
+  VenueOpenFields,
+  type VenueRequestInitial,
+  type YearOption,
+} from "./venue-request-fields";
 
 const textareaClass =
   "min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
@@ -39,23 +46,28 @@ export type PlaceRequestInitial = {
   detail?: string;
   supportPlan?: string;
   place?: PickerItem | null;
+  /** ค่าเริ่มต้นของคำขอเปิด ปิด ย้ายสนามสอบ */
+  venue?: VenueRequestInitial;
 };
 
 /**
- * ฟอร์มคำขอจัดตั้ง / ขอยุบ สำนักเรียน สำนักศาสนศึกษา
+ * ฟอร์มคำขอของระบบที่ 4: จัดตั้ง / ยุบ สำนักเรียน สำนักศาสนศึกษา และ เปิด / ปิด / ย้าย สนามสอบ
  * ยื่นใหม่: บันทึกคำขอก่อน แล้วแนบเอกสารทีละไฟล์ (แต่ละไฟล์ไม่เกิน 10 MB) จากนั้นพาไปหน้าคำขอ
- * แก้ไขแล้วส่งใหม่ (requestId): วัดที่ตั้งหรือสำนักที่ขอยุบเปลี่ยนไม่ได้ เอกสารแนบจัดการที่หน้าคำขอ
+ * แก้ไขแล้วส่งใหม่ (requestId): วัดที่ตั้ง สำนัก สถานที่ตั้ง หรือสนามสอบของคำขอเปลี่ยนไม่ได้ เอกสารแนบจัดการที่หน้าคำขอ
  */
 export function PlaceRequestForm({
   type,
   docTypes,
   requestId,
   initial = {},
+  years = [],
 }: {
   type: PlaceRequestType;
   docTypes: RequestDocumentType[];
   requestId?: string;
   initial?: PlaceRequestInitial;
+  /** ปีการศึกษาในระบบ (ใช้กับคำขอสนามสอบ) */
+  years?: YearOption[];
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -97,11 +109,50 @@ export function PlaceRequestForm({
         buildings: text("buildings"),
         detail: text("detail"),
       };
-    } else {
+    } else if (type === "samnak_dissolve") {
       if (!text("place_id")) return setError("กรุณาค้นหาแล้วเลือกสำนักที่ขอยุบ");
       if (!text("detail")) return setError("กรุณาระบุเหตุผล");
       if (!text("support_plan")) return setError("กรุณากรอกแผนรองรับนักเรียนและบุคลากร");
       data = { place_id: text("place_id"), detail: text("detail"), support_plan: text("support_plan") };
+    } else if (type === "venue_open") {
+      const levels = form.getAll("levels").map(String);
+      if (!text("name")) return setError("กรุณากรอกชื่อสนามสอบ");
+      if (!text("venue_type")) return setError("กรุณาเลือกประเภท นักธรรม หรือ ธรรมศึกษา");
+      if (!text("place_id")) return setError("กรุณาค้นหาแล้วเลือกสถานที่ตั้ง");
+      if (levels.length === 0) return setError("กรุณาเลือกชั้นที่เปิดสอบอย่างน้อย 1 ชั้น");
+      if (!/^\d{1,6}$/.test(text("capacity")) || Number(text("capacity")) < 1) {
+        return setError("กรุณากรอกจำนวนผู้เข้าสอบโดยประมาณ เป็นตัวเลข 1 ถึง 100,000");
+      }
+      if (!text("start_year_be")) return setError("กรุณาเลือกปีการศึกษาที่เริ่ม");
+      if (!text("chair_person_id")) return setError("กรุณาค้นหาแล้วเลือกประธานสนามสอบ");
+      if (!text("receiver_person_id")) return setError("กรุณาค้นหาแล้วเลือกผู้รับข้อสอบ");
+      data = {
+        name: text("name"),
+        venue_type: text("venue_type"),
+        place_id: text("place_id"),
+        levels,
+        capacity: text("capacity"),
+        start_year_be: text("start_year_be"),
+        chair_person_id: text("chair_person_id"),
+        receiver_person_id: text("receiver_person_id"),
+        detail: text("detail"),
+      };
+    } else if (type === "venue_close") {
+      if (!text("venue_id")) return setError("กรุณาค้นหาแล้วเลือกสนามสอบที่ขอปิด");
+      if (!text("replacement_venue_id")) return setError("กรุณาค้นหาแล้วเลือกสนามสอบที่จะรับผู้เข้าสอบแทน");
+      if (!text("detail")) return setError("กรุณาระบุเหตุผล");
+      data = { venue_id: text("venue_id"), replacement_venue_id: text("replacement_venue_id"), detail: text("detail") };
+    } else {
+      if (!text("venue_id")) return setError("กรุณาค้นหาแล้วเลือกสนามสอบที่ขอย้าย");
+      if (!text("to_place_id")) return setError("กรุณาค้นหาแล้วเลือกสถานที่ตั้งใหม่");
+      if (!text("effective_year_be")) return setError("กรุณาเลือกปีการศึกษาที่มีผล");
+      if (!text("detail")) return setError("กรุณาระบุเหตุผล");
+      data = {
+        venue_id: text("venue_id"),
+        to_place_id: text("to_place_id"),
+        effective_year_be: text("effective_year_be"),
+        detail: text("detail"),
+      };
     }
 
     // เอกสารแนบ (เฉพาะตอนยื่นใหม่)
@@ -148,8 +199,17 @@ export function PlaceRequestForm({
     <form onSubmit={onSubmit} className="flex flex-col gap-6" noValidate data-testid="place-request-form">
       {establish ? (
         <EstablishFields initial={initial} editing={editing} />
-      ) : (
+      ) : type === "samnak_dissolve" ? (
         <DissolveFields initial={initial} editing={editing} />
+      ) : type === "venue_open" ? (
+        <VenueOpenFields initial={initial.venue ?? {}} editing={editing} years={years} />
+      ) : (
+        <VenueChangeFields
+          kind={type === "venue_close" ? "close" : "move"}
+          initial={initial.venue ?? {}}
+          editing={editing}
+          years={years}
+        />
       )}
 
       <div className="rounded-xl border bg-card p-5" data-testid="request-documents-inputs">
@@ -198,20 +258,6 @@ export function PlaceRequestForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-function LockedPick({ label, name, item, note }: { label: string; name: string; item: PickerItem; note: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="font-semibold">{label}</p>
-      <input type="hidden" name={name} value={item.id} />
-      <div className="rounded-md border border-input bg-muted px-3 py-2">
-        <span className="font-semibold">{item.label}</span>
-        {item.detail ? <span className="block text-sm text-muted-foreground">{item.detail}</span> : null}
-      </div>
-      <p className="text-sm text-muted-foreground">{note}</p>
-    </div>
   );
 }
 

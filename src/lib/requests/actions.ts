@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 import { explainError, type ActionResult } from "@/lib/errors";
 import { REGISTRY_TAG } from "@/lib/registry";
+import { TRACK_TAG } from "@/lib/track";
 import { createClient } from "@/lib/supabase/server";
 
 import type { Decision } from "./labels";
@@ -13,6 +14,9 @@ function refresh(requestId?: string) {
   revalidatePath("/app/approvals");
   revalidatePath("/app/admin/demo");
   revalidatePath("/app/requests");
+  // หน้าสาธารณะ ติดตามคำขอ: ตารางสรุปและสถานะต้องตรงกับผลล่าสุด
+  revalidateTag(TRACK_TAG, { expire: 0 });
+  revalidatePath("/track");
   if (requestId) revalidatePath(`/app/approvals/${requestId}`);
 }
 

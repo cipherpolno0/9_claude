@@ -10,9 +10,9 @@ import { explainError } from "@/lib/errors";
 import {
   DEFAULT_STEP_DAYS,
   PLACE_REQUEST_LABEL,
+  PLACE_REQUEST_TITLE,
   PLACE_REQUEST_TYPES,
-  SAMNAK_TYPE_LABEL,
-  isSamnakType,
+  requestKindLabel,
 } from "@/lib/place-requests";
 import {
   fetchPlaceRequestCounts,
@@ -38,7 +38,7 @@ const TAB_LABEL: Record<RequestTab, string> = {
   area: "ทั้งหมดในเขต",
 };
 const EMPTY: Record<RequestTab, string> = {
-  mine: "ท่านยังไม่เคยยื่นคำขอจัดตั้งหรือขอยุบสำนัก",
+  mine: "ท่านยังไม่เคยยื่นคำขอของระบบนี้",
   pending: "ไม่มีคำขอรอท่านพิจารณา",
   area: "ไม่พบคำขอในเขตที่ท่านดูแลตามเงื่อนไขนี้",
 };
@@ -58,7 +58,8 @@ export default async function RequestsPage({
   await remindOverduePlaceRequests();
   const counts = await fetchPlaceRequestCounts();
   // ไม่ระบุแท็บ: ถ้ามีงานรอพิจารณาให้เปิดแท็บนั้นก่อน
-  const tab: RequestTab = isRequestTab(rawTab) ? rawTab : counts.pending > 0 ? "pending" : ctx.canEditPlaces ? "mine" : "area";
+  const canSubmit = ctx.canEditPlaces || ctx.canEditVenues;
+  const tab: RequestTab = isRequestTab(rawTab) ? rawTab : counts.pending > 0 ? "pending" : canSubmit ? "mine" : "area";
   const table = await queryPlaceRequests(tab, params);
 
   const rows: DataTableRow[] = table.rows.map((r) => ({
@@ -69,8 +70,8 @@ export default async function RequestsPage({
       </Link>,
       <div key="type" className="whitespace-nowrap">
         {PLACE_REQUEST_LABEL[r.type_key]}
-        {isSamnakType(r.place_type) ? (
-          <span className="block text-sm text-muted-foreground">{SAMNAK_TYPE_LABEL[r.place_type]}</span>
+        {requestKindLabel(r.place_type) ? (
+          <span className="block text-sm text-muted-foreground">{requestKindLabel(r.place_type)}</span>
         ) : null}
       </div>,
       <div key="name">
@@ -111,22 +112,17 @@ export default async function RequestsPage({
         <div>
           <h1 className="text-2xl font-bold text-primary sm:text-3xl">{menu.title}</h1>
           <p className="mt-1 text-muted-foreground">
-            คำขอจัดตั้งและขอยุบ สำนักเรียน สำนักศาสนศึกษา พิจารณาตามลำดับชั้นจากเขตของวัดที่ตั้งขึ้นไปถึงส่วนกลาง
-            ชั้นละไม่เกิน {days} วัน
+            คำขอจัดตั้งและยุบ สำนักเรียน สำนักศาสนศึกษา และคำขอเปิด ปิด ย้ายสนามสอบ
+            พิจารณาตามลำดับชั้นจากเขตคณะสงฆ์ของเรื่องขึ้นไปถึงส่วนกลาง ชั้นละไม่เกิน {days} วัน
           </p>
         </div>
-        {ctx.canEditPlaces ? (
-          <div className="flex flex-wrap gap-2">
-            <Button asChild>
-              <Link href="/app/requests/new?type=establish">
-                <Plus aria-hidden />
-                ยื่นคำขอจัดตั้ง
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/app/requests/new?type=dissolve">ยื่นคำขอยุบ</Link>
-            </Button>
-          </div>
+        {canSubmit ? (
+          <Button asChild>
+            <Link href="/app/requests/new">
+              <Plus aria-hidden />
+              ยื่นคำขอ
+            </Link>
+          </Button>
         ) : null}
       </div>
 
@@ -163,7 +159,7 @@ export default async function RequestsPage({
           columns={[
             { key: "no", header: "เลขที่", sortable: true },
             { key: "type", header: "ชนิด" },
-            { key: "name", header: "สำนัก / วัดที่ตั้ง" },
+            { key: "name", header: "สำนักหรือสนามสอบ / สถานที่ตั้ง" },
             { key: "unit", header: "เขตคณะสงฆ์" },
             { key: "submitted", header: "วันที่ยื่น", sortable: true },
             { key: "status", header: "สถานะ", sortable: true },
@@ -176,12 +172,12 @@ export default async function RequestsPage({
           sort={params.sort}
           dir={params.dir}
           q={params.q}
-          searchPlaceholder="ค้นหาเลขที่ ชื่อสำนัก หรือวัดที่ตั้ง"
+          searchPlaceholder="ค้นหาเลขที่ ชื่อ หรือสถานที่ตั้ง"
           filters={[
             {
               name: "type",
               label: "ชนิด",
-              options: PLACE_REQUEST_TYPES.map((t) => ({ value: t as string, label: PLACE_REQUEST_LABEL[t] })),
+              options: PLACE_REQUEST_TYPES.map((t) => ({ value: t as string, label: PLACE_REQUEST_TITLE[t] })),
             },
             {
               name: "status",

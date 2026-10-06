@@ -1,14 +1,46 @@
 /** คำขอจัดตั้งและยุบสำนักเรียน สำนักศาสนศึกษา (ระบบที่ 4): ชนิด ป้ายชื่อ และข้อมูลคำขอ */
 
 import type { RequestStatus } from "@/lib/requests/labels";
+import { VENUE_TYPE_LABEL, isVenueType, type VenueType } from "@/lib/venues";
 
-export const PLACE_REQUEST_TYPES = ["samnak_establish", "samnak_dissolve"] as const;
+export const PLACE_REQUEST_TYPES = ["samnak_establish", "samnak_dissolve", "venue_open", "venue_close", "venue_move"] as const;
 export type PlaceRequestType = (typeof PLACE_REQUEST_TYPES)[number];
 
+/** คำนำหน้าเรื่อง ต่อด้วยประเภทสำนักหรือประเภทสนามสอบ เช่น ขอจัดตั้ง + สำนักเรียน, ขอเปิดสนามสอบ + นักธรรม */
 export const PLACE_REQUEST_LABEL: Record<PlaceRequestType, string> = {
   samnak_establish: "ขอจัดตั้ง",
   samnak_dissolve: "ขอยุบ",
+  venue_open: "ขอเปิดสนามสอบ",
+  venue_close: "ขอปิดสนามสอบ",
+  venue_move: "ขอย้ายสนามสอบ",
 };
+
+/** ชื่อเต็มของชนิดคำขอ สำหรับตัวกรอง หัวข้อ และหน้าตั้งค่ารายการเอกสาร */
+export const PLACE_REQUEST_TITLE: Record<PlaceRequestType, string> = {
+  samnak_establish: "ขอจัดตั้งสำนักเรียน สำนักศาสนศึกษา",
+  samnak_dissolve: "ขอยุบสำนักเรียน สำนักศาสนศึกษา",
+  venue_open: "ขอเปิดสนามสอบ",
+  venue_close: "ขอปิดสนามสอบ",
+  venue_move: "ขอย้ายสนามสอบ",
+};
+
+export const VENUE_REQUEST_TYPES = ["venue_open", "venue_close", "venue_move"] as const;
+export type VenueRequestType = (typeof VENUE_REQUEST_TYPES)[number];
+export const isVenueRequestType = (value: unknown): value is VenueRequestType =>
+  typeof value === "string" && (VENUE_REQUEST_TYPES as readonly string[]).includes(value);
+
+/** ค่าของ ?type= ในหน้า /app/requests/new */
+export const REQUEST_TYPE_PARAM: Record<PlaceRequestType, string> = {
+  samnak_establish: "establish",
+  samnak_dissolve: "dissolve",
+  venue_open: "venue-open",
+  venue_close: "venue-close",
+  venue_move: "venue-move",
+};
+export function requestTypeFromParam(param: string | undefined): PlaceRequestType | null {
+  const found = PLACE_REQUEST_TYPES.find((t) => REQUEST_TYPE_PARAM[t] === param);
+  return found ?? null;
+}
 
 export const isPlaceRequestType = (value: unknown): value is PlaceRequestType =>
   typeof value === "string" && (PLACE_REQUEST_TYPES as readonly string[]).includes(value);
@@ -21,6 +53,13 @@ export const SAMNAK_TYPE_LABEL: Record<SamnakType, string> = {
 };
 export const isSamnakType = (value: unknown): value is SamnakType =>
   typeof value === "string" && (SAMNAK_TYPES as readonly string[]).includes(value);
+
+/** ป้ายของประเภทสำนัก (สำนักเรียน สำนักศาสนศึกษา) หรือประเภทสนามสอบ (นักธรรม ธรรมศึกษา) ว่างถ้าไม่รู้จัก */
+export function requestKindLabel(kind: unknown): string {
+  if (isSamnakType(kind)) return SAMNAK_TYPE_LABEL[kind];
+  if (isVenueType(kind)) return VENUE_TYPE_LABEL[kind];
+  return "";
+}
 
 /** แผนกที่กรอกจำนวนครูและนักเรียน (ผู้สั่งงานกำหนด: นักธรรม บาลี ธรรมศึกษา) ต้องตรงกับ private.build_place_request */
 export const DEPARTMENTS = [
@@ -118,6 +157,58 @@ export function readPlaceRequestPayload(payload: Record<string, unknown>): Place
     supportPlan: text(payload.support_plan),
     placeId: text(payload.place_id),
     placeCode: text(payload.place_code),
+  };
+}
+
+export type VenueRequestPayload = {
+  name: string;
+  venueType: VenueType | null;
+  venueId: string;
+  venueCode: string;
+  placeId: string;
+  placeName: string;
+  unitName: string;
+  levels: string[];
+  capacity: number | null;
+  chairPersonId: string;
+  chairName: string;
+  receiverPersonId: string;
+  receiverName: string;
+  startYear: number | null;
+  detail: string;
+  replacementVenueId: string;
+  replacementName: string;
+  replacementCode: string;
+  toPlaceId: string;
+  toPlaceName: string;
+  effectiveYear: number | null;
+};
+
+/** อ่านข้อมูลคำขอเปิด ปิด ย้ายสนามสอบ (คีย์ต้องตรงกับ private.build_venue_request) */
+export function readVenueRequestPayload(payload: Record<string, unknown>): VenueRequestPayload {
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  return {
+    name: text(payload.name),
+    venueType: isVenueType(payload.venue_type) ? payload.venue_type : null,
+    venueId: text(payload.venue_id),
+    venueCode: text(payload.venue_code),
+    placeId: text(payload.place_id),
+    placeName: text(payload.place_name),
+    unitName: text(payload.unit_name),
+    levels: Array.isArray(payload.levels) ? payload.levels.filter((l): l is string => typeof l === "string") : [],
+    capacity: num(payload.capacity),
+    chairPersonId: text(payload.chair_person_id),
+    chairName: text(payload.chair_name),
+    receiverPersonId: text(payload.receiver_person_id),
+    receiverName: text(payload.receiver_name),
+    startYear: num(payload.start_year_be),
+    detail: text(payload.detail),
+    replacementVenueId: text(payload.replacement_venue_id),
+    replacementName: text(payload.replacement_name),
+    replacementCode: text(payload.replacement_code),
+    toPlaceId: text(payload.to_place_id),
+    toPlaceName: text(payload.to_place_name),
+    effectiveYear: num(payload.effective_year_be),
   };
 }
 

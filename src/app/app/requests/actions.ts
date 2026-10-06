@@ -1,11 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import type { PickerItem } from "@/components/search-picker";
 import { explainError } from "@/lib/errors";
 import { isPlaceRequestType, isSamnakType, SAMNAK_TYPE_LABEL } from "@/lib/place-requests";
 import { createClient } from "@/lib/supabase/server";
+import { TRACK_TAG } from "@/lib/track";
+import { VENUE_TYPE_LABEL, isVenueType, type VenueType } from "@/lib/venues";
 
 const LIST = "/app/requests";
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -25,6 +27,8 @@ export async function submitPlaceRequest(type: string, data: PlaceRequestInput):
   revalidatePath(LIST);
   revalidatePath("/app");
   revalidatePath("/app/approvals");
+  revalidateTag(TRACK_TAG, { expire: 0 });
+  revalidatePath("/track");
   return { ok: true, id: id as string };
 }
 
@@ -37,6 +41,8 @@ export async function resubmitPlaceRequest(requestId: string, data: PlaceRequest
   revalidatePath(LIST);
   revalidatePath("/app");
   revalidatePath("/app/approvals");
+  revalidateTag(TRACK_TAG, { expire: 0 });
+  revalidatePath("/track");
   revalidatePath(`/app/approvals/${requestId}`);
   return { ok: true, id: requestId };
 }
@@ -76,5 +82,44 @@ export async function searchSamnak(q: string): Promise<PickerItem[]> {
     ]
       .filter(Boolean)
       .join(" · "),
+  }));
+}
+
+export type VenuePick = { venue_type: VenueType; place_name: string };
+
+/**
+ * ค้นสนามสอบที่เปิดอยู่ สำหรับฟอร์มขอปิด ขอย้าย และช่อง สนามสอบที่จะรับผู้เข้าสอบแทน
+ * type = จำกัดประเภท (นักธรรม / ธรรมศึกษา)  excludeId = ไม่รวมสนามสอบนี้ (เห็นเฉพาะสนามที่ผู้ใช้ดูได้ ฐานข้อมูลตรวจสิทธิ์ยื่นอีกชั้น)
+ */
+export async function searchOpenVenues(q: string, type?: string, excludeId?: string): Promise<PickerItem<VenuePick>[]> {
+  const term = clean(q);
+  if (term.length < 2) return [];
+  const supabase = await createClient();
+  let query = supabase
+    .from("exam_venues")
+    .select("id, code, name, venue_type, places(name), org_units(name)")
+    .eq("is_active", true)
+    .eq("status", "open")
+    .or(`name.ilike.%${term}%,code.ilike.%${term}%`)
+    .order("name")
+    .limit(20);
+  if (isVenueType(type)) query = query.eq("venue_type", type);
+  if (excludeId && UUID.test(excludeId)) query = query.neq("id", excludeId);
+  const { data } = await query;
+  type Row = {
+    id: string;
+    code: string;
+    name: string;
+    venue_type: VenueType;
+    places: { name: string } | null;
+    org_units: { name: string } | null;
+  };
+  return ((data as unknown as Row[] | null) ?? []).map((v) => ({
+    id: v.id,
+    label: v.name,
+    detail: [VENUE_TYPE_LABEL[v.venue_type], `รหัส ${v.code}`, v.places?.name ?? "", v.org_units?.name ?? ""]
+      .filter(Boolean)
+      .join(" · "),
+    data: { venue_type: v.venue_type, place_name: v.places?.name ?? "" },
   }));
 }

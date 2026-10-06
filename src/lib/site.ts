@@ -233,7 +233,7 @@ export const adminMenu: AdminMenuItem[] = [
   {
     title: "รายการเอกสารของคำขอ",
     href: "/app/admin/request-documents",
-    description: "เอกสารที่ต้องแนบกับคำขอจัดตั้งและคำขอยุบสำนักเรียน สำนักศาสนศึกษา ตามระเบียบ",
+    description: "เอกสารที่ต้องแนบกับคำขอจัดตั้ง-ยุบสำนัก และคำขอเปิด-ปิด-ย้ายสนามสอบ ตามระเบียบ",
     icon: FileCheck,
     adminOnly: true,
   },

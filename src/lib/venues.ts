@@ -32,7 +32,22 @@ export const OFFICER_ROLE_LABEL: Record<OfficerRole, string> = { chair: "ปร�
 export const isOfficerRole = (value: unknown): value is OfficerRole =>
   (OFFICER_ROLES as readonly string[]).includes(String(value));
 
-export type AcademicYear = { id: string; year_be: number; starts_on: string; ends_on: string; is_current: boolean };
+export type AcademicYear = {
+  id: string;
+  year_be: number;
+  starts_on: string;
+  ends_on: string;
+  is_current: boolean;
+  /** วันสุดท้ายที่รับคำขอเปิด ปิด ย้ายสนามสอบของปีนี้ (ว่าง = ไม่กำหนด) */
+  request_deadline: string | null;
+};
+
+/** วันนี้ตามเวลาประเทศไทย รูปแบบ YYYY-MM-DD */
+export const todayInBangkok = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+
+/** พ้นวันปิดรับคำขอสนามสอบของปีการศึกษานี้แล้วหรือไม่ (ตรงกับ private.check_request_deadline ในฐานข้อมูล) */
+export const requestDeadlinePassed = (year: Pick<AcademicYear, "request_deadline">, today = todayInBangkok()) =>
+  Boolean(year.request_deadline) && today > (year.request_deadline as string);
 
 export const VENUE_FIELD_LABEL: Record<string, string> = {
   code: "รหัสสนามสอบ",
@@ -44,6 +59,7 @@ export const VENUE_FIELD_LABEL: Record<string, string> = {
   capacity: "ความจุ",
   status: "สถานะ",
   moved_to_venue_id: "สนามสอบที่ย้ายไป",
+  request_deadline: "วันปิดรับคำขอ",
   start_year_be: "ปีการศึกษาที่เริ่มใช้",
   note: "หมายเหตุ",
   is_active: "ใช้งาน",

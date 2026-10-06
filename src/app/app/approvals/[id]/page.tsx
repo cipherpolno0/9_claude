@@ -11,8 +11,9 @@ import { RequestDocumentList } from "@/components/request-document-list";
 import { RequestTimeline } from "@/components/request-timeline";
 import { StatusRequestSummary } from "@/components/status-request-summary";
 import { Button } from "@/components/ui/button";
+import { VenueRequestSummary } from "@/components/venue-request-summary";
 import { requireWorkspace } from "@/lib/auth/guards";
-import { DEFAULT_STEP_DAYS, isPlaceRequestType, stepDeadline } from "@/lib/place-requests";
+import { DEFAULT_STEP_DAYS, isPlaceRequestType, isVenueRequestType, stepDeadline } from "@/lib/place-requests";
 import { fetchRequestDocuments } from "@/lib/place-requests-server";
 import { EVENT_LABEL } from "@/lib/requests/labels";
 import { fetchRequestDetail } from "@/lib/requests/queries";
@@ -94,12 +95,21 @@ export default async function RequestDetailPage({
       {placeRequest ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
           <h2 className="mb-2 text-xl font-bold text-primary">รายละเอียดคำขอ</h2>
-          <PlaceRequestSummary
-            typeKey={placeRequest}
-            payload={request.payload}
-            applied={request.status === "approved"}
-            canOpenPlace={ctx.allowedMenus.includes("/app/places")}
-          />
+          {isVenueRequestType(placeRequest) ? (
+            <VenueRequestSummary
+              typeKey={placeRequest}
+              payload={request.payload}
+              applied={request.status === "approved"}
+              canOpenVenue={ctx.canViewVenues && ctx.allowedMenus.includes("/app/places")}
+            />
+          ) : (
+            <PlaceRequestSummary
+              typeKey={placeRequest}
+              payload={request.payload}
+              applied={request.status === "approved"}
+              canOpenPlace={ctx.allowedMenus.includes("/app/places")}
+            />
+          )}
         </div>
       ) : null}
 
@@ -122,7 +132,9 @@ export default async function RequestDetailPage({
 
       {detail ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
-          <h2 className="text-xl font-bold text-primary">{statusRequest || placeRequest ? "เหตุผล" : "รายละเอียด"}</h2>
+          <h2 className="text-xl font-bold text-primary">
+            {request.type_key === "venue_open" ? "หมายเหตุ" : statusRequest || placeRequest ? "เหตุผล" : "รายละเอียด"}
+          </h2>
           <p className="mt-2 whitespace-pre-wrap">{detail}</p>
         </div>
       ) : null}

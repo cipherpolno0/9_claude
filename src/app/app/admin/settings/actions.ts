@@ -86,3 +86,29 @@ export async function setCurrentAcademicYear(yearId: string): Promise<ActionResu
   revalidateTag(REGISTRY_TAG, { expire: 0 }); // หน้าสนามสอบสาธารณะแสดงรายชื่อของปีปัจจุบัน
   return { ok: true, message: "ตั้งปีการศึกษาปัจจุบันแล้ว" };
 }
+
+/** วันปิดรับคำขอเปิด ปิด ย้ายสนามสอบของปีการศึกษา (ค่าว่าง = ไม่กำหนด) RLS ยอมให้แก้เฉพาะผู้ดูแลระบบ */
+export async function setRequestDeadline(_prev: FormState, formData: FormData): Promise<FormState> {
+  const yearId = String(formData.get("year_id") ?? "");
+  const clear = formData.get("clear") === "1";
+  const field = String(formData.get("field") ?? "");
+  const date = /^deadline_\d{4}$/.test(field) ? String(formData.get(field) ?? "") : "";
+  if (!/^[0-9a-f-]{36}$/i.test(yearId)) return { error: "ไม่พบปีการศึกษานี้" };
+  if (!clear) {
+    if (formData.get(`${field}_incomplete`) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return { error: "กรุณากรอกวันปิดรับคำขอให้ครบ (วัน เดือน ปี พ.ศ.)" };
+    }
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("academic_years")
+    .update({ request_deadline: clear ? null : date })
+    .eq("id", yearId)
+    .select("year_be");
+  if (error) return { error: explainError(error) };
+  if (!data?.length) return { error: "ท่านไม่มีสิทธิ์ทำรายการนี้" };
+  revalidatePath("/app/admin/settings");
+  revalidatePath("/app/requests/new");
+  const year = (data[0] as { year_be: number }).year_be;
+  return { message: clear ? `ยกเลิกวันปิดรับคำขอของปีการศึกษา ${year} แล้ว` : `บันทึกวันปิดรับคำขอของปีการศึกษา ${year} แล้ว` };
+}

@@ -6,15 +6,17 @@ import { ErrorText, InfoText } from "@/components/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ActionResult } from "@/lib/errors";
-import { PLACE_REQUEST_TYPES, type PlaceRequestType, type RequestDocumentType } from "@/lib/place-requests";
+import {
+  PLACE_REQUEST_TITLE,
+  PLACE_REQUEST_TYPES,
+  type PlaceRequestType,
+  type RequestDocumentType,
+} from "@/lib/place-requests";
 import { cn } from "@/lib/utils";
 
 import { addRequestDocumentType, updateRequestDocumentType } from "./actions";
 
-const TYPE_TITLE: Record<PlaceRequestType, string> = {
-  samnak_establish: "คำขอจัดตั้งสำนักเรียน สำนักศาสนศึกษา",
-  samnak_dissolve: "คำขอยุบสำนักเรียน สำนักศาสนศึกษา",
-};
+const typeTitle = (type: PlaceRequestType) => `คำ${PLACE_REQUEST_TITLE[type]}`;
 
 export function DocumentTypeManager({ types }: { types: RequestDocumentType[] }) {
   const [flash, setFlash] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function DocumentTypeManager({ types }: { types: RequestDocumentType[] })
         const required = newRequired[typeKey] ?? true;
         return (
           <div key={typeKey} className="rounded-xl border bg-card p-5" data-testid={`doc-types-${typeKey}`}>
-            <h2 className="text-xl font-bold text-primary">{TYPE_TITLE[typeKey]}</h2>
+            <h2 className="text-xl font-bold text-primary">{typeTitle(typeKey)}</h2>
             {list.length === 0 ? (
               <p className="mt-2 text-muted-foreground">
                 ยังไม่มีรายการเอกสาร ผู้ยื่นแนบเอกสารประกอบได้อิสระ และผู้พิจารณาเห็นชอบได้โดยไม่ตรวจเอกสาร

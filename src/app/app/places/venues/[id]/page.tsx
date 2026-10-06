@@ -21,7 +21,15 @@ import {
   type VenueStatus,
   type VenueType,
 } from "@/lib/venues";
-import { fetchAcademicYears, fetchVenue, fetchVenueHistory, fetchVenueOfficers, pickYear } from "@/lib/venues-server";
+import { thaiDate } from "@/lib/thai";
+import {
+  fetchAcademicYears,
+  fetchVenue,
+  fetchVenueChanges,
+  fetchVenueHistory,
+  fetchVenueOfficers,
+  pickYear,
+} from "@/lib/venues-server";
 
 import { FactRow } from "../../../personnel/person-facts";
 import { OfficerPanel } from "./officer-panel";
@@ -61,6 +69,7 @@ export default async function VenuePage({
   const tabs = [
     { key: "general", label: "ข้อมูลทั่วไป" },
     { key: "officers", label: "ประธานและผู้รับข้อสอบ" },
+    { key: "changes", label: "ประวัติเปิด ปิด ย้าย" },
     { key: "history", label: "ประวัติการแก้ไข" },
   ];
   const tab = tabs.some((t) => t.key === query.tab) ? String(query.tab) : "general";
@@ -92,6 +101,16 @@ export default async function VenuePage({
                 แก้ไขข้อมูล
               </Link>
             </Button>
+            {venue.is_active && venue.status === "open" ? (
+              <>
+                <Button asChild variant="outline">
+                  <Link href={`/app/requests/new?type=venue-move&venue=${venue.id}`}>ยื่นคำขอย้าย</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={`/app/requests/new?type=venue-close&venue=${venue.id}`}>ยื่นคำขอปิด</Link>
+                </Button>
+              </>
+            ) : null}
             <VenueActiveButton venueId={venue.id} isActive={venue.is_active} />
           </div>
         ) : null}
@@ -160,6 +179,8 @@ export default async function VenuePage({
           <Officers venueId={venue.id} canEdit={venue.can_edit && venue.is_active} open={venue.is_active && venue.status === "open"} base={base} year={year} years={years} />
         ) : null}
 
+        {tab === "changes" ? <Changes venueId={venue.id} /> : null}
+
         {tab === "history" ? (
           <HistoryList
             logs={(await fetchVenueHistory(venue.id)).map((l) => ({
@@ -172,6 +193,63 @@ export default async function VenuePage({
         ) : null}
       </div>
     </section>
+  );
+}
+
+const CHANGE_LABEL = { open: "เปิดสนามสอบ", close: "ปิดสนามสอบ", move: "ย้ายสถานที่ตั้ง" } as const;
+
+/** ประวัติการเปิด ปิด ย้าย ที่ระบบบันทึกเมื่อคำขอได้รับอนุมัติขั้นสุดท้าย (รวมสถานที่ตั้งเดิม) */
+async function Changes({ venueId }: { venueId: string }) {
+  const changes = await fetchVenueChanges(venueId);
+  if (changes.length === 0) {
+    return (
+      <p className="rounded-xl border bg-card p-5 text-muted-foreground" data-testid="venue-changes-empty">
+        ยังไม่มีประวัติการเปิด ปิด หรือย้ายจากคำขอ (ระบบบันทึกให้เมื่อคำขอเปิด ปิด ย้ายสนามสอบได้รับอนุมัติขั้นสุดท้าย)
+      </p>
+    );
+  }
+  return (
+    <ul className="flex flex-col gap-3" data-testid="venue-changes">
+      {changes.map((c) => (
+        <li key={c.id} className="rounded-xl border bg-card p-4">
+          <p className="font-semibold">
+            {CHANGE_LABEL[c.change_type]} · {thaiDate(c.created_at)}
+          </p>
+          {c.change_type === "move" ? (
+            <p>
+              จาก {c.from_place_name || "-"} ไป {c.to_place_name || "-"}
+              {c.effective_year_be ? ` · มีผลปีการศึกษา ${c.effective_year_be}` : ""}
+            </p>
+          ) : null}
+          {c.change_type === "open" ? (
+            <p>
+              สถานที่ตั้ง {c.to_place_name || "-"}
+              {c.effective_year_be ? ` · เริ่มปีการศึกษา ${c.effective_year_be}` : ""}
+            </p>
+          ) : null}
+          {c.change_type === "close" ? (
+            <p>
+              สถานที่ตั้งขณะปิด {c.from_place_name || "-"} · สนามสอบที่รับผู้เข้าสอบแทน:{" "}
+              {c.replacement ? (
+                <Link href={`/app/places/venues/${c.replacement.id}`} className="text-primary underline underline-offset-4">
+                  {c.replacement.name}
+                </Link>
+              ) : (
+                "-"
+              )}
+            </p>
+          ) : null}
+          {c.reason ? <p className="text-muted-foreground">เหตุผล: {c.reason}</p> : null}
+          {c.request_id ? (
+            <p>
+              <Link href={`/app/approvals/${c.request_id}`} className="text-primary underline underline-offset-4">
+                ดูคำขอที่เกี่ยวข้อง
+              </Link>
+            </p>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 
