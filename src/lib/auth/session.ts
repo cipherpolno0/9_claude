@@ -4,7 +4,7 @@ import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
 
-import { ACCOUNT_MANAGER_ROLES, QUIZ_MANAGER_ROLES, type PersonnelScope } from "./config";
+import { ACCOUNT_MANAGER_ROLES, EXAM_ROUND_MANAGER_ROLES, QUIZ_MANAGER_ROLES, type PersonnelScope } from "./config";
 
 export type Profile = {
   id: string;
@@ -127,6 +127,7 @@ export const getAuthContext = cache(async () => {
     canViewVenues,
     canEditVenues,
     canManageQuiz: effectiveKeys.some((k) => QUIZ_MANAGER_ROLES.includes(k)),
+    canManageExamRounds: effectiveKeys.some((k) => EXAM_ROUND_MANAGER_ROLES.includes(k)),
     settings,
   };
 });

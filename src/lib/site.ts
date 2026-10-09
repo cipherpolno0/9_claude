@@ -238,6 +238,13 @@ export const adminMenu: AdminMenuItem[] = [
     adminOnly: true,
   },
   {
+    title: "แบบฟอร์มบัญชี ศ.",
+    href: "/app/admin/form-templates",
+    description: "หัวตาราง ชนิดข้อมูล บังคับกรอก กฎตรวจ ของแม่แบบ Excel สมัครสอบ และรายการคำนำหน้าชื่อ",
+    icon: FileSpreadsheet,
+    adminOnly: true,
+  },
+  {
     title: "ประวัติการแก้ไข",
     href: "/app/admin/audit",
     description: "ใคร ทำอะไร กับข้อมูลใด เมื่อใด ค้นและกรองได้",

@@ -64,3 +64,6 @@ export const ACCOUNT_MANAGER_ROLES = ["admin", "central_staff", "chief", "deputy
 
 /** บทบาทที่จัดการคลังข้อสอบได้ (ต้องตรงกับฟังก์ชัน can_manage_quiz ในฐานข้อมูล ซึ่งเป็นตัวตัดสินสิทธิ์จริง) */
 export const QUIZ_MANAGER_ROLES: readonly string[] = ["quiz_manager", "admin"];
+
+/** บทบาทที่จัดการรอบสมัครสอบได้ (ส่วนกลางและผู้ดูแลระบบ) ต้องตรงกับ can_manage_exam_rounds() ในฐานข้อมูล */
+export const EXAM_ROUND_MANAGER_ROLES: readonly string[] = ["admin", "central_staff"];
