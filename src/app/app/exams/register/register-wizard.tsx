@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Download } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Download, Upload } from "lucide-react";
 
 import { ErrorText } from "@/components/form";
 import { SearchPicker, type PickerItem } from "@/components/search-picker";
@@ -12,6 +13,7 @@ import { thaiDate } from "@/lib/thai";
 import { cn } from "@/lib/utils";
 import { todayInBangkok } from "@/lib/venues";
 
+import { uploadRegistration } from "../batches/actions";
 import { checkRegisterTemplate, searchRegisterPlaces, searchRegisterVenues } from "./actions";
 
 function Step({ no, title, done, children }: { no: number; title: string; done: boolean; children: React.ReactNode }) {
@@ -34,8 +36,22 @@ function Step({ no, title, done, children }: { no: number; title: string; done: 
   );
 }
 
-/** สมัครสอบ 3 ขั้น: รอบ > สำนักหรือสถานศึกษา > สนามสอบ แล้วดาวน์โหลดแม่แบบ */
-export function RegisterWizard({ rounds }: { rounds: RegisterRound[] }) {
+/**
+ * สมัครสอบ 3 ขั้น: รอบ > สำนักหรือสถานศึกษา > สนามสอบ
+ * mode="download" ดาวน์โหลดแม่แบบ (บทที่ 17) / mode="upload" อัปโหลดไฟล์ที่กรอกแล้วเพื่อตรวจ (บทที่ 18)
+ */
+export function RegisterWizard({
+  rounds,
+  mode = "download",
+  limits,
+}: {
+  rounds: RegisterRound[];
+  mode?: "download" | "upload";
+  limits?: { maxMb: number; maxRows: number };
+}) {
+  const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [details, setDetails] = useState<string[]>([]);
   const [roundId, setRoundId] = useState<string>(rounds.find((r) => r.accepting)?.id ?? "");
   const [place, setPlace] = useState<PickerItem | null>(null);
   const [venue, setVenue] = useState<PickerItem | null>(null);
@@ -50,7 +66,36 @@ export function RegisterWizard({ rounds }: { rounds: RegisterRound[] }) {
     setVenue(null);
     setWarnings([]);
     setError(null);
+    setDetails([]);
   };
+
+  const upload = () =>
+    startTransition(async () => {
+      setError(null);
+      setDetails([]);
+      const file = fileRef.current?.files?.[0];
+      if (!round || !place || !venue) return;
+      if (!file) {
+        setError("กรุณาเลือกไฟล์ Excel ที่กรอกแล้ว");
+        return;
+      }
+      if (limits && file.size > limits.maxMb * 1024 * 1024) {
+        setError(`ไฟล์ใหญ่เกิน ${limits.maxMb} MB`);
+        return;
+      }
+      const formData = new FormData();
+      formData.set("round", round.id);
+      formData.set("place", place.id);
+      formData.set("venue", venue.id);
+      formData.set("file", file);
+      const result = await uploadRegistration(formData);
+      if (!result.ok) {
+        setError(result.error);
+        setDetails(result.details ?? []);
+        return;
+      }
+      router.push(`/app/exams/batches/${result.id}`);
+    });
 
   const download = () =>
     startTransition(async () => {
@@ -155,23 +200,60 @@ export function RegisterWizard({ rounds }: { rounds: RegisterRound[] }) {
         )}
       </Step>
 
-      <div className="rounded-xl border bg-card p-5">
-        <Button type="button" size="lg" disabled={!round || !place || !venue || pending} onClick={download}>
-          <Download aria-hidden />
-          {pending ? "กำลังตรวจ..." : "ดาวน์โหลดแม่แบบ"}
-        </Button>
-        <ErrorText>{error}</ErrorText>
-        {warnings.length ? (
-          <ul className="mt-3 list-disc pl-6 text-amber-900" data-testid="template-warnings">
-            {warnings.map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-          </ul>
-        ) : null}
-        <p className="mt-3 text-sm text-muted-foreground">
-          แม่แบบมี 2 แผ่นงาน: แผ่นแรกสำหรับกรอกและส่ง (ห้ามรวมชั้น ห้ามรวมสนามสอบ) และแผ่นงาน ตัวอย่าง ที่มีแถวตัวอย่างและคำแนะนำรายคอลัมน์
-        </p>
-      </div>
+      {mode === "upload" ? (
+        <Step no={4} title="เลือกไฟล์ที่กรอกแล้ว และอัปโหลดเพื่อตรวจ" done={false}>
+          <label htmlFor="registration-file" className="font-medium">
+            ไฟล์บัญชี ศ. (.xlsx)
+          </label>
+          <input
+            id="registration-file"
+            ref={fileRef}
+            type="file"
+            name="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="mt-1 block w-full rounded-md border bg-background p-2"
+          />
+          <p className="mt-1 text-sm text-muted-foreground">
+            ไม่เกิน {limits?.maxMb ?? 5} MB และไม่เกิน {(limits?.maxRows ?? 2000).toLocaleString("th-TH")} คนต่อไฟล์
+            ใช้แม่แบบที่ดาวน์โหลดจากระบบสำหรับรอบ สำนัก และสนามสอบนี้ ห้ามเพิ่ม ลบ หรือย้ายคอลัมน์
+          </p>
+          <Button type="button" size="lg" className="mt-3" disabled={!round || !place || !venue || pending} onClick={upload}>
+            <Upload aria-hidden />
+            {pending ? "กำลังอ่านและตรวจไฟล์..." : "อัปโหลดและตรวจ"}
+          </Button>
+          <div className="mt-3">
+            <ErrorText>{error}</ErrorText>
+          </div>
+          {details.length ? (
+            <ul className="mt-2 list-disc pl-6 text-destructive" data-testid="upload-problems">
+              {details.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="mt-3 text-sm text-muted-foreground">
+            ระบบจะตรวจทุกแถวแล้วแสดงตัวอย่างให้ดูก่อน ยังไม่บันทึกเป็นผู้สมัครจนกว่าท่านจะกดยืนยัน
+          </p>
+        </Step>
+      ) : (
+        <div className="rounded-xl border bg-card p-5">
+          <Button type="button" size="lg" disabled={!round || !place || !venue || pending} onClick={download}>
+            <Download aria-hidden />
+            {pending ? "กำลังตรวจ..." : "ดาวน์โหลดแม่แบบ"}
+          </Button>
+          <ErrorText>{error}</ErrorText>
+          {warnings.length ? (
+            <ul className="mt-3 list-disc pl-6 text-amber-900" data-testid="template-warnings">
+              {warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="mt-3 text-sm text-muted-foreground">
+            แม่แบบมี 2 แผ่นงาน: แผ่นแรกสำหรับกรอกและส่ง (ห้ามรวมชั้น ห้ามรวมสนามสอบ) และแผ่นงาน ตัวอย่าง ที่มีแถวตัวอย่างและคำแนะนำรายคอลัมน์
+          </p>
+        </div>
+      )}
     </div>
   );
 }

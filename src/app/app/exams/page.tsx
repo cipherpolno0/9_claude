@@ -24,6 +24,16 @@ export default async function WorkspaceExamsPage({ searchParams }: { searchParam
       title: "สมัครสอบ: ดาวน์โหลดแม่แบบบัญชี ศ.",
       text: "เลือกรอบ สำนักหรือสถานศึกษาของท่าน และสนามสอบ แล้วดาวน์โหลดแม่แบบที่เติมหัวแฟ้มไว้แล้ว",
     },
+    {
+      href: "/app/exams/batches/new",
+      title: "อัปโหลดรายชื่อผู้สมัคร",
+      text: "อัปโหลดไฟล์บัญชี ศ. ที่กรอกแล้ว ระบบตรวจทุกแถว แสดงตัวอย่าง แล้วจึงยืนยัน",
+    },
+    {
+      href: "/app/exams/batches",
+      title: "ชุดรายชื่อผู้สมัครสอบ",
+      text: "ดูผลการตรวจ ยืนยัน หรือถอนชุดที่อัปโหลดแล้ว และดาวน์โหลดรายการข้อผิดพลาด",
+    },
     ...(ctx.canManageExamRounds
       ? [{ href: "/app/exams/rounds", title: "รอบสมัครสอบ", text: "สร้างรอบ กำหนดวันรับสมัครและวันสอบ เปิดและปิดรับสมัคร (ส่วนกลาง)" }]
       : []),
@@ -34,7 +44,7 @@ export default async function WorkspaceExamsPage({ searchParams }: { searchParam
     <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-10">
       <h1 className="text-2xl font-bold text-primary sm:text-3xl">{menu.title}</h1>
       <p className="mt-1 text-muted-foreground">
-        สมัครสอบนักธรรมและธรรมศึกษาด้วยแฟ้ม Excel บัญชี ศ. ตามแบบของสำนักงานแม่กองธรรม (การรับไฟล์และผลสอบจะเพิ่มในบทต่อไป)
+        สมัครสอบนักธรรมและธรรมศึกษาด้วยแฟ้ม Excel บัญชี ศ. ตามแบบของสำนักงานแม่กองธรรม (การส่งรายชื่อและผลสอบจะเพิ่มในบทต่อไป)
       </p>
       {denied ? (
         <p role="alert" className="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3">
