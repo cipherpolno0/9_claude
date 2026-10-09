@@ -27,24 +27,28 @@ export default async function WorkspaceExamsPage({ searchParams }: { searchParam
     {
       href: "/app/exams/batches/new",
       title: "อัปโหลดรายชื่อผู้สมัคร",
-      text: "อัปโหลดไฟล์บัญชี ศ. ที่กรอกแล้ว ระบบตรวจทุกแถว แสดงตัวอย่าง แล้วจึงยืนยัน",
+      text: "อัปโหลดไฟล์บัญชี ศ. ที่กรอกแล้ว (หรือไฟล์เพิ่มเติมเข้าบัญชีเดิม) ระบบตรวจทุกแถว แสดงตัวอย่าง แล้วจึงยืนยัน",
     },
     {
       href: "/app/exams/batches",
-      title: "ชุดรายชื่อผู้สมัครสอบ",
-      text: "ดูผลการตรวจ ยืนยัน หรือถอนชุดที่อัปโหลดแล้ว และดาวน์โหลดรายการข้อผิดพลาด",
+      title: "บัญชีผู้สมัครสอบ",
+      text: "แก้ไข เพิ่ม ถอนรายชื่อ ส่งบัญชีให้เจ้าคณะอำเภอและจังหวัดรับรอง และดูบัญชีที่ส่งในเขต",
     },
+    ...(ctx.canManageExamRounds
+      ? [{ href: "/app/exams/totals", title: "ยอดผู้สมัครต่อสนามสอบ", text: "ยอดจากบัญชีที่ส่งแล้ว ส่งออก Excel ใช้จัดเตรียมข้อสอบ (ส่วนกลาง)" }]
+      : []),
     ...(ctx.canManageExamRounds
       ? [{ href: "/app/exams/rounds", title: "รอบสมัครสอบ", text: "สร้างรอบ กำหนดวันรับสมัครและวันสอบ เปิดและปิดรับสมัคร (ส่วนกลาง)" }]
       : []),
     { href: "/downloads", title: "แม่แบบเปล่าและคู่มือการกรอก", text: "หน้าดาวน์โหลดสาธารณะ ใช้ได้โดยไม่ต้องล็อกอิน" },
+    { href: "/exams/stats", title: "สถิติสมัครสอบ (สาธารณะ)", text: "จำนวนผู้สมัครแยกตามปี ประเภท ชั้น ช่วงชั้น ภาค จังหวัด" },
   ];
 
   return (
     <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-10">
       <h1 className="text-2xl font-bold text-primary sm:text-3xl">{menu.title}</h1>
       <p className="mt-1 text-muted-foreground">
-        สมัครสอบนักธรรมและธรรมศึกษาด้วยแฟ้ม Excel บัญชี ศ. ตามแบบของสำนักงานแม่กองธรรม (การส่งรายชื่อและผลสอบจะเพิ่มในบทต่อไป)
+        สมัครสอบนักธรรมและธรรมศึกษาด้วยแฟ้ม Excel บัญชี ศ. ตามแบบของสำนักงานแม่กองธรรม (ผลสอบจะเพิ่มในบทต่อไป)
       </p>
       {denied ? (
         <p role="alert" className="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3">

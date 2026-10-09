@@ -22,7 +22,7 @@ export default async function NewBatchPage() {
         </Link>{" "}
         /{" "}
         <Link href="/app/exams/batches" className="text-primary underline underline-offset-4">
-          ชุดรายชื่อผู้สมัครสอบ
+          บัญชีผู้สมัครสอบ
         </Link>
       </p>
       <h1 className="mt-2 text-2xl font-bold text-primary sm:text-3xl">อัปโหลดรายชื่อผู้สมัครสอบ</h1>

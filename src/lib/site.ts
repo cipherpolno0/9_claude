@@ -62,6 +62,7 @@ export const publicMenu: MenuItem[] = [
     title: "สอบธรรมสนามหลวง",
     href: "/exams",
     description: "ตรวจรายชื่อผู้ขอเข้าสอบ และค้นผลสอบนักธรรม-ธรรมศึกษา",
+    children: [{ title: "สถิติสมัครสอบ", href: "/exams/stats" }],
   },
   {
     title: "ติดตามคำขอ",

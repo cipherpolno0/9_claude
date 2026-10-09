@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { Attachments } from "@/components/attachments";
 import { ErrorText } from "@/components/form";
+import { ExamRegistrationSummary } from "@/components/exam-registration-summary";
 import { PlaceRequestSummary } from "@/components/place-request-summary";
 import { ProfileEditSummary } from "@/components/profile-edit-summary";
 import { RequestDocumentList } from "@/components/request-document-list";
@@ -113,6 +114,13 @@ export default async function RequestDetailPage({
         </div>
       ) : null}
 
+      {request.type_key === "exam_registration" ? (
+        <div className="mt-6 rounded-xl border bg-card p-5">
+          <h2 className="mb-2 text-xl font-bold text-primary">บัญชีผู้สมัครสอบ</h2>
+          <ExamRegistrationSummary payload={request.payload} />
+        </div>
+      ) : null}
+
       {request.type_key === "profile_edit" ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
           <h2 className="mb-3 text-xl font-bold text-primary">รายการที่ขอแก้ไข</h2>
@@ -187,7 +195,13 @@ export default async function RequestDetailPage({
               title={request.title}
               detail={detail}
               extraPayload={request.type_key === "profile_edit" || statusRequest ? request.payload : undefined}
-              editHref={placeRequest ? `/app/requests/${request.id}/edit` : undefined}
+              editHref={
+                placeRequest
+                  ? `/app/requests/${request.id}/edit`
+                  : request.type_key === "exam_registration" && typeof request.payload.batch_id === "string"
+                    ? `/app/exams/batches/${request.payload.batch_id}`
+                    : undefined
+              }
             />
           </div>
         </div>
