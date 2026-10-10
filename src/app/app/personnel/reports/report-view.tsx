@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { Fragment } from "react";
 
-import type { ReportTable } from "@/lib/reports";
+import { reportCell, type ReportTable } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 
 const alignClass = { left: "text-left", center: "text-center", right: "text-right" } as const;
@@ -15,7 +16,7 @@ export function ReportView({ report }: { report: ReportTable }) {
       <h2 className="text-xl font-bold text-primary">{report.title}</h2>
       <p className="text-muted-foreground">{report.subtitle}</p>
       {report.note ? <p className="mt-1 text-sm text-muted-foreground">{report.note}</p> : null}
-      <div className="mt-3 overflow-x-auto rounded-xl border bg-card">
+      <div className="relative mt-3 overflow-x-auto rounded-xl border bg-card">
         <table className="w-full min-w-[40rem] border-collapse">
           <thead className="bg-muted">
             <tr>
@@ -48,9 +49,15 @@ export function ReportView({ report }: { report: ReportTable }) {
                     </tr>
                   ) : null}
                   <tr className="border-b align-top last:border-b-0">
-                    {shown.map((c) => (
-                      <td key={c.j} className={cn("px-3 py-2", alignClass[c.align ?? "left"])}>
-                        {row[c.j]}
+                    {shown.map((c, k) => (
+                      <td key={c.j} className={cn("px-3 py-2", alignClass[c.align ?? "left"], c.format ? "tabular-nums" : "")}>
+                        {k === 0 && report.rowLinks?.[i] ? (
+                          <Link href={report.rowLinks[i] as string} prefetch={false} className="text-primary underline underline-offset-4">
+                            {reportCell(c, row[c.j])}
+                          </Link>
+                        ) : (
+                          reportCell(c, row[c.j])
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -63,7 +70,7 @@ export function ReportView({ report }: { report: ReportTable }) {
               <tr>
                 {shown.map((c) => (
                   <td key={c.j} className={cn("border-t px-3 py-2", alignClass[c.align ?? "left"])}>
-                    {report.footer?.[c.j]}
+                    {reportCell(c, report.footer?.[c.j])}
                   </td>
                 ))}
               </tr>

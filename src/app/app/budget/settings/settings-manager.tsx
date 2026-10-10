@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -10,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { FISCAL_STATUS_LABEL, type BudgetOption, type FiscalYear } from "@/lib/budget";
 import { thaiDate } from "@/lib/thai";
 
-import { addFiscalYear, saveBudgetOption, setFiscalYearStatus } from "../actions";
+import { addFiscalYear, saveBudgetOption, setFiscalYearStatus, setFiscalYearTargets } from "../actions";
 
 type Result = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -48,22 +49,31 @@ export function FiscalYearManager({ years }: { years: FiscalYear[] }) {
               {thaiDate(y.starts_on, "short")} – {thaiDate(y.ends_on, "short")}
             </span>
             <span className={y.status === "open" ? "font-semibold text-green-800" : "font-semibold text-destructive"}>
-              {FISCAL_STATUS_LABEL[y.status]}
+              {y.year_end_closed_at ? "ปิดสิ้นปีแล้ว" : FISCAL_STATUS_LABEL[y.status]}
             </span>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="ml-auto"
-              disabled={pending}
-              onClick={() => {
-                const next = y.status === "open" ? "closed" : "open";
-                if (next === "closed" && !window.confirm(`ปิดปีงบประมาณ ${y.year_be}? หลังปิดแล้วแก้ไข จัดสรร และโอนไม่ได้ (เปิดใหม่ได้ภายหลัง)`)) return;
-                run(() => setFiscalYearStatus(y.id, next));
-              }}
-            >
-              {y.status === "open" ? "ปิดปี" : "เปิดปีอีกครั้ง"}
-            </Button>
+            <div className="ml-auto flex flex-wrap gap-2">
+              {!y.year_end_closed_at ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => {
+                    const next = y.status === "open" ? "closed" : "open";
+                    if (next === "closed" && !window.confirm(`ล็อกปีงบประมาณ ${y.year_be} ชั่วคราว? ระหว่างล็อกแก้ไข จัดสรร โอน และเบิกจ่ายไม่ได้ (ปลดล็อกได้ภายหลัง)`)) return;
+                    run(() => setFiscalYearStatus(y.id, next));
+                  }}
+                >
+                  {y.status === "open" ? "ล็อกชั่วคราว" : "ปลดล็อก"}
+                </Button>
+              ) : null}
+              <Button asChild size="sm" variant={y.year_end_closed_at ? "outline" : "default"}>
+                <Link href={`/app/budget/settings/close?year=${y.year_be}`} prefetch={false}>
+                  {y.year_end_closed_at ? "ดูสรุปปิดปี" : "ปิดสิ้นปีงบประมาณ"}
+                </Link>
+              </Button>
+            </div>
+            <TargetsForm year={y} />
           </li>
         ))}
       </ul>
@@ -86,6 +96,46 @@ export function FiscalYearManager({ years }: { years: FiscalYear[] }) {
       <ErrorText>{error}</ErrorText>
       <InfoText>{flash}</InfoText>
     </div>
+  );
+}
+
+/** เป้าการเบิกจ่ายสะสมรายไตรมาส (ร้อยละ) ว่างทั้ง 4 ช่อง = ไม่ตั้งเป้า */
+function TargetsForm({ year }: { year: FiscalYear }) {
+  const { error, flash, pending, run } = useRun();
+  const init = [year.target_q1, year.target_q2, year.target_q3, year.target_q4].map((v) => (v === null || v === undefined ? "" : String(Number(v))));
+  const [values, setValues] = useState(init);
+  return (
+    <form
+      className="flex w-full flex-wrap items-end gap-2 border-t pt-3"
+      data-testid="year-targets"
+      onSubmit={(e) => {
+        e.preventDefault();
+        run(() => setFiscalYearTargets(year.id, values));
+      }}
+    >
+      <span className="w-full text-sm font-semibold">เป้าเบิกจ่ายสะสม (ร้อยละ) สิ้นไตรมาส</span>
+      {[1, 2, 3, 4].map((q) => (
+        <div key={q} className="flex flex-col gap-1">
+          <Label htmlFor={`y${year.year_be}-q${q}`} className="text-sm">
+            ไตรมาส {q}
+          </Label>
+          <Input
+            id={`y${year.year_be}-q${q}`}
+            inputMode="decimal"
+            className="w-24"
+            value={values[q - 1]}
+            onChange={(e) => setValues((v) => v.map((x, i) => (i === q - 1 ? e.target.value : x)))}
+          />
+        </div>
+      ))}
+      <Button type="submit" size="sm" variant="outline" disabled={pending}>
+        บันทึกเป้า
+      </Button>
+      <div className="w-full">
+        <ErrorText>{error}</ErrorText>
+        <InfoText>{flash}</InfoText>
+      </div>
+    </form>
   );
 }
 

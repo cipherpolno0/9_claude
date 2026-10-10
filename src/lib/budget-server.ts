@@ -6,6 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 
 import type {
   AllocationRow,
+  CloseCandidate,
+  ClosingSummaryRow,
+  DisbursementReportRow,
+  MonthlyRow,
+  ScopeLine,
+  UnitReportRow,
   ApprovalLimit,
   DisbursementRow,
   LedgerRow,
@@ -26,7 +32,7 @@ export async function fetchFiscalYears(): Promise<FiscalYear[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("fiscal_years")
-    .select("id, year_be, starts_on, ends_on, status, note")
+    .select("id, year_be, starts_on, ends_on, status, note, target_q1, target_q2, target_q3, target_q4, year_end_closed_at, year_end_note")
     .order("year_be", { ascending: false });
   if (error) throw error;
   return (data as FiscalYear[] | null) ?? [];
@@ -182,4 +188,62 @@ export async function fetchApprovalLimits(): Promise<ApprovalLimit[]> {
     .select("id, level, role_key, max_amount, updated_at");
   if (error) throw error;
   return (data as ApprovalLimit[] | null) ?? [];
+}
+
+// ---------------------------------------------------------------
+// บทที่ 24
+// ---------------------------------------------------------------
+export async function fetchScopeLines(yearId: string, unitId: string, sub: boolean): Promise<ScopeLine[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_scope_lines", { p_year: yearId, p_unit: unitId, p_sub: sub });
+  if (error) throw error;
+  return (data as ScopeLine[] | null) ?? [];
+}
+
+export async function fetchMonthly(yearId: string, unitId: string, sub: boolean): Promise<MonthlyRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_monthly", { p_year: yearId, p_unit: unitId, p_sub: sub });
+  if (error) throw error;
+  return (data as MonthlyRow[] | null) ?? [];
+}
+
+export async function fetchUnitReport(yearId: string, unitId: string): Promise<UnitReportRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_unit_report", { p_year: yearId, p_unit: unitId });
+  if (error) throw error;
+  return (data as UnitReportRow[] | null) ?? [];
+}
+
+export async function fetchDisbursementReport(yearId: string, unitId: string, sub: boolean): Promise<DisbursementReportRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_disbursement_report", { p_year: yearId, p_unit: unitId, p_sub: sub, p_limit: 5000 });
+  if (error) throw error;
+  return (data as DisbursementReportRow[] | null) ?? [];
+}
+
+export async function fetchCloseCandidates(yearId: string): Promise<CloseCandidate[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_close_candidates", { p_year: yearId });
+  if (error) throw error;
+  return (data as CloseCandidate[] | null) ?? [];
+}
+
+export async function fetchClosingSummary(yearId: string): Promise<ClosingSummaryRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_year_closing_summary", { p_year: yearId });
+  if (error) throw error;
+  return (data as ClosingSummaryRow[] | null) ?? [];
+}
+
+/**
+ * แจ้งเตือนงบเหลือน้อยและคำของบประมาณค้างพิจารณา (ฐานข้อมูลกันแจ้งซ้ำ)
+ * เรียกเมื่อเปิดแดชบอร์ดหรือหน้างบประมาณ ถ้าผิดพลาดไม่กระทบการแสดงหน้า
+ */
+export async function remindBudgetAlerts(): Promise<void> {
+  try {
+    const supabase = await createClient();
+    await supabase.rpc("remind_budget_alerts");
+  } catch {
+    // งานเสริม
+  }
 }

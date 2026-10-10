@@ -42,7 +42,20 @@ export const STATUS_BADGE_CLASS: Record<string, string> = {
 };
 
 /** ตารางรายงานแบบกลาง: ใช้ทั้งแสดงบนจอ ส่งออก Excel และหน้าพิมพ์ */
-export type ReportColumn = { header: string; width?: number; align?: "left" | "center" | "right" };
+export type ReportColumn = {
+  header: string;
+  width?: number;
+  align?: "left" | "center" | "right";
+  /** money = จำนวนเงิน 2 ตำแหน่ง / percent = ร้อยละ (ค่าในแถวเป็นตัวเลข แปลงเป็นข้อความตอนแสดงผล Excel ใช้รูปแบบตัวเลข) */
+  format?: "money" | "percent";
+};
+
+/** แสดงค่าของช่องตามรูปแบบคอลัมน์ (บนจอและหน้าพิมพ์) */
+export function reportCell(column: ReportColumn | undefined, value: string | number | undefined): string | number | undefined {
+  if (typeof value !== "number" || !column?.format) return value;
+  const text = value.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return column.format === "percent" ? `${text}%` : text;
+}
 export type ReportTable = {
   /** ชนิดรายงาน (รายงานบุคลากรใช้ ReportKind ระบบอื่นใช้ชื่อของตน) */
   kind: ReportKind | (string & {});
@@ -58,6 +71,8 @@ export type ReportTable = {
   groupColumn?: number;
   /** แถวสรุปท้ายตาราง (ถ้ามี) */
   footer?: (string | number)[];
+  /** ลิงก์ของแต่ละแถว (เปิดจากช่องแรกที่แสดง ใช้บนจอเท่านั้น) เช่น เจาะดูรายงานของหน่วยใต้สังกัด */
+  rowLinks?: (string | null)[];
 };
 
 export type GovernanceSlot = {

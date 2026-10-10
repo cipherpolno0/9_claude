@@ -47,7 +47,7 @@ export default async function UsePage({
           ← คำขอใช้งบประมาณ
         </Link>
       </p>
-      <h1 className="mt-2 text-2xl font-bold text-primary sm:text-3xl">คำขอใช้งบประมาณ {u.request_no ?? ""}</h1>
+      <h1 className="mt-2 text-2xl font-bold text-primary sm:text-3xl">คำขอใช้งบประมาณ {u.request_no ?? u.carried_from_no ?? ""}</h1>
       <p className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
         <span className={`rounded border px-2 py-0.5 text-sm ${USE_STATUS_CLASS[u.status] ?? ""}`} data-testid="use-status">
           {USE_STATUS_LABEL[u.status] ?? u.status}
@@ -88,12 +88,14 @@ export default async function UsePage({
         ) : null}
       </div>
 
-      {u.status === "approved" || u.status === "closed" ? (
+      {u.status === "approved" || u.status === "closed" || u.status === "carried" ? (
         <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="use-money">
           {[
             ["ผูกพัน (อนุมัติ)", u.committed],
             ["เบิกจ่ายแล้ว", u.disbursed],
-            [u.status === "closed" ? "คืนเงินเหลือจ่าย" : "คงค้างเบิก", u.status === "closed" ? u.released : u.outstanding],
+            u.status === "carried"
+              ? ["ยกไปปีถัดไป", u.carried]
+              : [u.status === "closed" ? "คืนเงินเหลือจ่าย" : "คงค้างเบิก", u.status === "closed" ? u.released : u.outstanding],
             ["งวดที่จ่าย", null],
           ].map(([label, value]) => (
             <div key={String(label)} className="rounded-xl border bg-card p-4">
@@ -104,6 +106,23 @@ export default async function UsePage({
         </dl>
       ) : null}
 
+      {u.carried_from_id ? (
+        <p className="mt-4 rounded-xl border border-sky-300 bg-sky-50 p-4" data-testid="use-carried-from">
+          ยกยอดผูกพันมาจากปีงบประมาณ {u.carried_from_year}{" "}
+          <Link href={`/app/budget/uses/${u.carried_from_id}`} prefetch={false} className="text-primary underline underline-offset-4">
+            ดูคำขอเดิม {u.carried_from_no ?? ""}
+          </Link>{" "}
+          · เบิกต่อได้ในปีนี้โดยไม่ต้องขออนุมัติใหม่
+        </p>
+      ) : null}
+      {u.status === "carried" && u.carried_to_id ? (
+        <p className="mt-4 rounded-xl border border-sky-300 bg-sky-50 p-4" data-testid="use-carried-to">
+          ปิดปีงบประมาณ {u.year_be} แล้ว ยอดค้างเบิก {baht(u.carried)} บาท ยกไปปีงบประมาณ {u.carried_to_year} เมื่อ {thaiDateTime(u.carried_at)}{" "}
+          <Link href={`/app/budget/uses/${u.carried_to_id}`} prefetch={false} className="text-primary underline underline-offset-4">
+            ไปที่คำขอในปีใหม่
+          </Link>
+        </p>
+      ) : null}
       {u.status === "closed" ? (
         <p className="mt-4 rounded-xl border bg-card p-4" data-testid="use-closed">
           ปิดคำขอเมื่อ {thaiDateTime(u.released_at)} คืนเงินเหลือจ่าย {baht(u.released)} บาท กลับเข้ารายการ
@@ -133,7 +152,7 @@ export default async function UsePage({
         </div>
       ) : null}
 
-      {u.status === "approved" || u.status === "closed" ? (
+      {u.status === "approved" || u.status === "closed" || u.status === "carried" ? (
         <div className="mt-6 flex flex-col gap-4">
           <h2 className="text-xl font-bold text-primary">การเบิกจ่าย</h2>
           {payments.length === 0 ? (

@@ -287,7 +287,32 @@ export async function setFiscalYearStatus(id: string, status: "open" | "closed")
   if (error) return { ok: false, error: explainError(error) };
   if (!data?.length) return { ok: false, error: "ไม่พบปีงบประมาณ" };
   refresh();
-  return { ok: true, message: status === "closed" ? "ปิดปีงบประมาณแล้ว" : "เปิดปีงบประมาณแล้ว" };
+  return { ok: true, message: status === "closed" ? "ล็อกปีงบประมาณชั่วคราวแล้ว" : "ปลดล็อกปีงบประมาณแล้ว" };
+}
+
+/** เป้าเบิกจ่ายสะสมรายไตรมาส: กรอกครบ 4 ช่อง (0-100 ไม่ลดลง) หรือเว้นว่างทั้งหมด */
+export async function setFiscalYearTargets(id: string, values: string[]): Promise<ActionResult> {
+  const ctx = await requireMenu(MENU);
+  if (!ctx.isAdmin || !isUuid(id)) return { ok: false, error: "ตั้งเป้าได้เฉพาะผู้ดูแลระบบ" };
+  const raw = (Array.isArray(values) ? values : []).slice(0, 4).map((v) => String(v ?? "").trim());
+  let targets: (string | null)[] = [null, null, null, null];
+  if (raw.some((v) => v !== "")) {
+    if (raw.length < 4 || raw.some((v) => v === "")) return { ok: false, error: "กรุณากรอกเป้าให้ครบทั้ง 4 ไตรมาส หรือเว้นว่างทั้งหมด" };
+    const parsed = raw.map((v) => parseMoney(v));
+    if (parsed.some((v) => v === null || Number(v) > 100)) return { ok: false, error: "เป้าต้องเป็นตัวเลข 0 ถึง 100 ทศนิยมไม่เกิน 2 ตำแหน่ง" };
+    if (parsed.some((v, i) => i > 0 && Number(v) < Number(parsed[i - 1]))) return { ok: false, error: "เป้าสะสมต้องไม่ลดลงจากไตรมาสก่อน" };
+    targets = parsed;
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("fiscal_years")
+    .update({ target_q1: targets[0], target_q2: targets[1], target_q3: targets[2], target_q4: targets[3] })
+    .eq("id", id)
+    .select("year_be");
+  if (error) return { ok: false, error: explainError(error) };
+  if (!data?.length) return { ok: false, error: "ไม่พบปีงบประมาณ" };
+  refresh();
+  return { ok: true, message: targets[0] === null ? "ล้างเป้าแล้ว" : "บันทึกเป้าแล้ว" };
 }
 
 export async function saveBudgetOption(
@@ -314,4 +339,25 @@ export async function saveBudgetOption(
   if (!data?.length) return { ok: false, error: "แก้ไขได้เฉพาะผู้ดูแลระบบ" };
   refresh();
   return { ok: true, message: "บันทึกแล้ว" };
+}
+
+// ---------------------------------------------------------------
+// ปิดสิ้นปีงบประมาณ (บทที่ 24)
+// ---------------------------------------------------------------
+export async function closeFiscalYear(yearId: string, carry: string[], note: string): Promise<ActionResult> {
+  const ctx = await requireMenu(MENU);
+  if (!ctx.isAdmin || !isUuid(yearId)) return { ok: false, error: "ปิดปีงบประมาณได้เฉพาะผู้ดูแลระบบ" };
+  const ids = (Array.isArray(carry) ? carry : []).filter(isUuid).slice(0, 5000);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("close_fiscal_year", { p_year: yearId, p_carry: ids, p_note: text(note, 1000) });
+  if (error) return { ok: false, error: explainError(error) };
+  refresh();
+  const r = data as { released: number; released_count: number; carried: number; carried_count: number; next_year: number | null };
+  const m = (v: number) => Number(v ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return {
+    ok: true,
+    message:
+      `ปิดสิ้นปีแล้ว: คืนเงินเหลือจ่ายอัตโนมัติ ${r.released_count} คำขอ ${m(r.released)} บาท` +
+      (r.carried_count ? ` · ยกยอดผูกพันไปปีงบประมาณ ${r.next_year} ${r.carried_count} คำขอ ${m(r.carried)} บาท` : ""),
+  };
 }

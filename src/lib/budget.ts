@@ -55,6 +55,13 @@ export type FiscalYear = {
   ends_on: string;
   status: "open" | "closed";
   note: string;
+  target_q1: number | string | null;
+  target_q2: number | string | null;
+  target_q3: number | string | null;
+  target_q4: number | string | null;
+  /** ปิดสิ้นปีแล้ว (บทที่ 24) */
+  year_end_closed_at: string | null;
+  year_end_note: string;
 };
 
 export type BudgetOption = { id: string; name: string; sort_order: number; is_active: boolean };
@@ -261,11 +268,13 @@ export const USE_STATUS_LABEL: Record<string, string> = {
   rejected: "ไม่อนุมัติ",
   cancelled: "ยกเลิก",
   closed: "ปิดแล้ว",
+  carried: "ยกไปปีถัดไป",
 };
 
 export const USE_STATUS_CLASS: Record<string, string> = {
   ...TRANSFER_STATUS_CLASS,
   closed: "border-slate-300 bg-slate-100 text-slate-800",
+  carried: "border-sky-300 bg-sky-100 text-sky-900",
 };
 
 export const LEDGER_KIND_LABEL: Record<string, string> = {
@@ -275,6 +284,7 @@ export const LEDGER_KIND_LABEL: Record<string, string> = {
   commit: "ผูกพัน",
   disburse: "เบิกจ่าย",
   release: "คืนเงินเหลือจ่าย",
+  carry: "ยกยอดไปปีถัดไป",
 };
 
 /** หมวดรายจ่ายที่ต้องอ้างอิงรายการรับเข้าของระบบพัสดุ (บทที่ 25-26) */
@@ -322,6 +332,13 @@ export type UseDetail = {
   approved_at: string | null;
   released_at: string | null;
   release_reason: string;
+  carried: number | string;
+  carried_at: string | null;
+  carried_to_id: string | null;
+  carried_to_year: number | null;
+  carried_from_id: string | null;
+  carried_from_year: number | null;
+  carried_from_no: string | null;
   created_at: string;
   is_mine: boolean;
   can_edit: boolean;
@@ -397,3 +414,149 @@ export function treeSpend(roots: BudgetTreeNode[], summary: Map<string, SpendSum
     total: { committed: sumMoney(active.map((a) => a.committed)), disbursed: sumMoney(active.map((a) => a.disbursed)) },
   };
 }
+
+// ---------------------------------------------------------------
+// บทที่ 24: แดชบอร์ด รายงาน ปิดปี
+// ---------------------------------------------------------------
+export type ScopeLine = {
+  org_unit_id: string;
+  unit_name: string;
+  item_id: string;
+  item_label: string;
+  category_name: string | null;
+  source_id: string | null;
+  source_name: string | null;
+  project_id: string;
+  project_name: string;
+  program_id: string;
+  program_name: string;
+  program_code: string;
+  owner_unit_id: string;
+  owner_unit_name: string;
+  sort_key: string;
+  received: number | string;
+  allocated: number | string;
+  committed: number | string;
+  disbursed: number | string;
+  remaining: number | string;
+};
+
+export type MonthlyRow = { month_no: number; month_start: string; committed: number | string; disbursed: number | string };
+
+export type UnitReportRow = {
+  org_unit_id: string;
+  unit_name: string;
+  unit_level: string;
+  unit_code: string;
+  is_self: boolean;
+  has_children: boolean;
+  received: number | string;
+  allocated: number | string;
+  committed: number | string;
+  disbursed: number | string;
+  remaining: number | string;
+};
+
+export type DisbursementReportRow = {
+  id: string;
+  paid_on: string;
+  unit_name: string;
+  item_path: string;
+  request_no: string;
+  purpose: string;
+  installment_no: number;
+  kind: "payment" | "adjustment";
+  payee: string;
+  voucher_no: string;
+  amount: number | string;
+  reason: string;
+  note: string;
+};
+
+export type CloseCandidate = {
+  id: string;
+  unit_name: string;
+  item_path: string;
+  request_no: string;
+  purpose: string;
+  committed: number | string;
+  disbursed: number | string;
+  outstanding: number | string;
+};
+
+export type ClosingSummaryRow = {
+  org_unit_id: string;
+  unit_name: string;
+  received: number | string;
+  allocated: number | string;
+  committed: number | string;
+  disbursed: number | string;
+  released: number | string;
+  carried: number | string;
+  remaining: number | string;
+};
+
+export type MoneyTotals = { received: number; allocated: number; committed: number; disbursed: number; remaining: number };
+
+/** ผลรวมของชุดแถว (ปัดเป็นสตางค์) */
+export function moneyTotals(rows: { received: number | string; allocated: number | string; committed: number | string; disbursed: number | string; remaining: number | string }[]): MoneyTotals {
+  return {
+    received: sumMoney(rows.map((r) => r.received)),
+    allocated: sumMoney(rows.map((r) => r.allocated)),
+    committed: sumMoney(rows.map((r) => r.committed)),
+    disbursed: sumMoney(rows.map((r) => r.disbursed)),
+    remaining: sumMoney(rows.map((r) => r.remaining)),
+  };
+}
+
+/** วงเงินที่หน่วยใช้เอง = วงเงิน - จัดสรรออก */
+export const ownBase = (t: { received: number | string; allocated: number | string }) =>
+  Math.round((Number(t.received) - Number(t.allocated)) * 100) / 100;
+
+/** ร้อยละการเบิกจ่าย = เบิกจ่าย ÷ วงเงินที่ใช้เอง (null เมื่อไม่มีวงเงิน) */
+export function disbursedPercent(t: { received: number | string; allocated: number | string; disbursed: number | string }): number | null {
+  const base = ownBase(t);
+  if (base <= 0) return null;
+  return Math.round((Number(t.disbursed) / base) * 10000) / 100;
+}
+
+export const percentText = (v: number | null | undefined) =>
+  v === null || v === undefined ? "-" : `${v.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+
+export const MONTH_SHORT = ["ต.ค.", "พ.ย.", "ธ.ค.", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย."];
+export const QUARTER_LABEL = ["ไตรมาส 1 (ต.ค.–ธ.ค.)", "ไตรมาส 2 (ม.ค.–มี.ค.)", "ไตรมาส 3 (เม.ย.–มิ.ย.)", "ไตรมาส 4 (ก.ค.–ก.ย.)"];
+
+/** เป้าสะสมรายไตรมาสของปี (null = ยังไม่ตั้ง) */
+export function yearTargets(year: FiscalYear | null): number[] | null {
+  if (!year || year.target_q1 === null || year.target_q1 === undefined) return null;
+  return [year.target_q1, year.target_q2, year.target_q3, year.target_q4].map((v) => Number(v ?? 0));
+}
+
+/** เป้าสะสม (ร้อยละ) ณ สิ้นเดือนที่ m (0 = ต.ค. ... 11 = ก.ย.) ภายในไตรมาสเพิ่มขึ้นเท่ากันทุกเดือน */
+export function monthTarget(targets: number[], m: number): number {
+  const q = Math.floor(m / 3);
+  const prev = q === 0 ? 0 : targets[q - 1];
+  return Math.round((prev + ((targets[q] - prev) * ((m % 3) + 1)) / 3) * 100) / 100;
+}
+
+/**
+ * เดือนสุดท้ายที่ใช้เทียบเป้า = สิ้นเดือนที่แล้ว (เดือนปัจจุบันยังไม่จบ) คืน -1 เมื่อยังไม่ครบเดือนแรก
+ * ปีที่ผ่านไปแล้ว = ก.ย. (11)
+ */
+export function compareMonthIndex(year: FiscalYear, todayIso: string): number {
+  const [ty, tm] = todayIso.split("-").map(Number);
+  const [sy, sm] = year.starts_on.split("-").map(Number);
+  const idx = ty * 12 + tm - (sy * 12 + sm);
+  return Math.min(11, idx - 1);
+}
+
+export const BUDGET_REPORT_KINDS = ["plan", "unit", "source", "quarter", "detail"] as const;
+export type BudgetReportKind = (typeof BUDGET_REPORT_KINDS)[number];
+export const BUDGET_REPORT_LABEL: Record<BudgetReportKind, string> = {
+  plan: "ตามแผนงาน โครงการ หมวดรายจ่าย",
+  unit: "ตามหน่วย",
+  source: "ตามแหล่งเงิน",
+  quarter: "รายไตรมาส",
+  detail: "รายละเอียดการเบิกจ่าย",
+};
+export const isBudgetReportKind = (v: unknown): v is BudgetReportKind => (BUDGET_REPORT_KINDS as readonly string[]).includes(String(v));

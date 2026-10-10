@@ -19,7 +19,7 @@ export default async function UsesPage({ searchParams }: { searchParams: Promise
   const { years, year, units, unit, unitEditable } = await loadBudgetScope(await searchParams);
   const rows = year && unit ? await fetchUseRows(year.id, unit.id) : [];
   const q = budgetQuery(year, unit);
-  const active = rows.filter((r) => r.status === "approved" || r.status === "closed");
+  const active = rows.filter((r) => r.status === "approved" || r.status === "closed" || r.status === "carried");
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:py-10">
@@ -88,7 +88,7 @@ export default async function UsesPage({ searchParams }: { searchParams: Promise
                     <tr key={u.id} className="border-t align-top" data-testid="use-row">
                       <td className="px-3 py-2">
                         <Link href={`/app/budget/uses/${u.id}?${q}`} prefetch={false} className="text-primary underline underline-offset-4">
-                          {u.request_no ?? "-"}
+                          {u.request_no ?? "ยกมาจากปีก่อน"}
                         </Link>
                         <span className="block text-sm text-muted-foreground">{u.requester_name}</span>
                       </td>

@@ -5,6 +5,7 @@ import { PendingRequestsBox } from "@/components/pending-requests-box";
 import { requireWorkspace } from "@/lib/auth/guards";
 import { fullName } from "@/lib/auth/session";
 import { LEVEL_LABEL, SECT_LABEL, type OrgLevel, type Sect } from "@/lib/org-units";
+import { remindBudgetAlerts } from "@/lib/budget-server";
 import { remindOverduePlaceRequests } from "@/lib/place-requests-server";
 import { fetchMyPendingRequests } from "@/lib/requests/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -39,6 +40,7 @@ export default async function DashboardPage({
     supabase.rpc("my_org_units"),
     fetchMyPendingRequests(),
     remindOverduePlaceRequests(),
+    remindBudgetAlerts(),
   ]);
   const myUnits = (data as MyUnit[] | null) ?? [];
   const seesAll = myUnits.some((u) => u.all_units);

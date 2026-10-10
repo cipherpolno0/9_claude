@@ -1,7 +1,7 @@
 "use client";
 
 import { D, PrintPage, useDigits } from "@/components/print/print-page";
-import type { ReportTable } from "@/lib/reports";
+import { reportCell, type ReportTable } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 
 const alignClass = { left: "text-left", center: "text-center", right: "text-right" } as const;
@@ -36,7 +36,7 @@ function Table({
             <td className={cn(cell, "text-center")}>{d(i + 1)}</td>
             {shown.map((c) => (
               <td key={c.j} className={cn(cell, alignClass[c.align ?? "left"])}>
-                {d(row[c.j])}
+                {d(reportCell(c, row[c.j]) ?? "")}
               </td>
             ))}
           </tr>
@@ -46,7 +46,7 @@ function Table({
             <td className={cell} />
             {shown.map((c) => (
               <td key={c.j} className={cn(cell, "font-bold", alignClass[c.align ?? "left"])}>
-                {d(footer[c.j])}
+                {d(reportCell(c, footer[c.j]) ?? "")}
               </td>
             ))}
           </tr>
@@ -71,10 +71,18 @@ function groupsOf(report: ReportTable): { title: string; rows: (string | number)
 }
 
 /** หน้าพิมพ์ของรายงาน (ใช้หน้าพิมพ์กลาง เลือกเลขไทยหรือเลขอารบิกได้) รายงานที่มี groupColumn พิมพ์แยกตารางตามกลุ่ม */
-export function ReportPrintSheet({ report, emptyText = "ไม่มีข้อมูลในเขตนี้" }: { report: ReportTable; emptyText?: string }) {
+export function ReportPrintSheet({
+  report,
+  emptyText = "ไม่มีข้อมูลในเขตนี้",
+  orientation = "portrait",
+}: {
+  report: ReportTable;
+  emptyText?: string;
+  orientation?: "portrait" | "landscape";
+}) {
   const groups = groupsOf(report);
   return (
-    <PrintPage title={report.title} subtitle={report.subtitle}>
+    <PrintPage title={report.title} subtitle={report.subtitle} orientation={orientation}>
       {report.note ? <p className="text-sm">{report.note}</p> : null}
       {report.rows.length === 0 ? (
         <p className="mt-3">{emptyText}</p>
