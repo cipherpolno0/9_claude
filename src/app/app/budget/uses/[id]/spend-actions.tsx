@@ -89,7 +89,7 @@ export function DisbursementForm({
           <div className="flex flex-col gap-1 sm:col-span-2">
             <Label htmlFor="pay-asset">อ้างอิงรายการรับเข้าพัสดุ (ระบบพัสดุ-ครุภัณฑ์)</Label>
             <Input id="pay-asset" name="asset_ref" maxLength={40} placeholder="เว้นว่างได้" />
-            <p className="text-sm text-muted-foreground">ช่องนี้เตรียมไว้เชื่อมกับรายการรับเข้าของระบบพัสดุ ซึ่งจะเปิดใช้ในบทถัดไป ตอนนี้เว้นว่างได้</p>
+            <p className="text-sm text-muted-foreground">เว้นว่างได้ การผูกวัสดุที่ซื้อกับงวดจ่ายนี้ ให้เจ้าหน้าที่พัสดุเลือกงวดจ่ายตอนบันทึกรับเข้าที่เมนู พัสดุ-ครุภัณฑ์ &gt; รับเข้า</p>
           </div>
         ) : null}
       </div>

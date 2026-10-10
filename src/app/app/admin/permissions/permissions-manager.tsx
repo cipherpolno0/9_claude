@@ -19,6 +19,8 @@ export type RoleRow = {
   venues_edit: PersonnelScope;
   budget_view: PersonnelScope;
   budget_edit: PersonnelScope;
+  inventory_view: PersonnelScope;
+  inventory_edit: PersonnelScope;
 };
 
 /** ระบบที่ตั้งขอบเขตดู/แก้ไขได้ (เพิ่มระบบใหม่ที่นี่ คู่กับคอลัมน์ <area>_view / <area>_edit ใน roles) */
@@ -27,6 +29,7 @@ const AREAS: { key: ScopeArea; title: string; menu: string; menuTitle: string }[
   { key: "places", title: "ทะเบียนสถานที่", menu: "/app/places", menuTitle: "ทะเบียนสถานที่" },
   { key: "venues", title: "ทะเบียนสนามสอบ", menu: "/app/places", menuTitle: "ทะเบียนสถานที่" },
   { key: "budget", title: "งบประมาณ", menu: "/app/budget", menuTitle: "งบประมาณ" },
+  { key: "inventory", title: "คลังวัสดุ", menu: "/app/inventory", menuTitle: "พัสดุ-ครุภัณฑ์" },
 ];
 export type MenuRow = { role_key: string; menu_href: string; enabled: boolean };
 

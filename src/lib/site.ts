@@ -168,7 +168,7 @@ export const workspaceMenu: MenuGroup[] = [
       },
       {
         title: "พัสดุ-ครุภัณฑ์",
-        href: "/app/assets",
+        href: "/app/inventory",
         description: "คลังวัสดุและทะเบียนครุภัณฑ์ (ระบบที่ 7)",
         icon: Archive,
       },

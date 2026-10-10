@@ -1,14 +1,6 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { UnderConstruction } from "@/components/under-construction";
-import { requireMenu } from "@/lib/auth/guards";
-import { findWorkspaceMenu } from "@/lib/site";
-
-const menu = findWorkspaceMenu("/app/assets");
-
-export const metadata: Metadata = { title: menu.title };
-
-export default async function AssetsPage() {
-  await requireMenu(menu.href);
-  return <UnderConstruction title={menu.title} description={menu.description} />;
+// เมนู พัสดุ-ครุภัณฑ์ ย้ายไป /app/inventory ในบทที่ 25 (หน้านี้คงไว้ให้ลิงก์เดิมยังใช้ได้)
+export default function AssetsPage() {
+  redirect("/app/inventory");
 }

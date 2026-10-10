@@ -51,7 +51,7 @@ export const getAuthContext = cache(async () => {
     supabase.from("role_menus").select("role_key, menu_href").eq("enabled", true),
     supabase
       .from("roles")
-      .select("key, personnel_view, personnel_edit, places_view, places_edit, venues_view, venues_edit, budget_view, budget_edit"),
+      .select("key, personnel_view, personnel_edit, places_view, places_edit, venues_view, venues_edit, budget_view, budget_edit, inventory_view, inventory_edit"),
   ]);
 
   const profile = (profileRes.data as Profile | null) ?? null;
@@ -88,6 +88,8 @@ export const getAuthContext = cache(async () => {
     venues_edit: PersonnelScope;
     budget_view: PersonnelScope;
     budget_edit: PersonnelScope;
+    inventory_view: PersonnelScope;
+    inventory_edit: PersonnelScope;
   };
   const scopes = new Map(((scopesRes.data as ScopeRow[] | null) ?? []).map((r) => [r.key, r]));
   // มีสิทธิ์แก้ไขทะเบียนบุคคลอย่างน้อยหนึ่งเขต (สิทธิ์จริงตรวจที่ฐานข้อมูลตามเขตปกครองอีกชั้น)
@@ -116,6 +118,15 @@ export const getAuthContext = cache(async () => {
     const edit = scopes.get(r.role_key)?.budget_edit ?? "none";
     return r.effective && (edit === "all" || (edit !== "none" && r.org_unit_id !== null));
   });
+  // พัสดุ (บทที่ 25): ดู = เห็นคลังและยื่นใบเบิก / แก้ไข = รับเข้า จ่ายของ โอน ปรับยอด (สิทธิ์จริงตรวจที่ฐานข้อมูลตามหน่วย)
+  const canViewInventory = roles.some((r) => {
+    const view = scopes.get(r.role_key)?.inventory_view ?? "none";
+    return r.effective && (view === "all" || (view !== "none" && r.org_unit_id !== null));
+  });
+  const canEditInventory = roles.some((r) => {
+    const edit = scopes.get(r.role_key)?.inventory_edit ?? "none";
+    return r.effective && (edit === "all" || (edit !== "none" && r.org_unit_id !== null));
+  });
   const canViewAllPersonnel = roles.some((r) => r.effective && scopes.get(r.role_key)?.personnel_view === "all");
 
   return {
@@ -139,6 +150,8 @@ export const getAuthContext = cache(async () => {
     canEditPlaces,
     canViewVenues,
     canEditVenues,
+    canViewInventory,
+    canEditInventory,
     canViewBudget,
     canEditBudget,
     canManageQuiz: effectiveKeys.some((k) => QUIZ_MANAGER_ROLES.includes(k)),

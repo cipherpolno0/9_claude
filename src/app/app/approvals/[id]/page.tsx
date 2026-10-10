@@ -10,12 +10,14 @@ import { ErrorText } from "@/components/form";
 import { ExamRegistrationSummary } from "@/components/exam-registration-summary";
 import { PlaceRequestSummary } from "@/components/place-request-summary";
 import { ProfileEditSummary } from "@/components/profile-edit-summary";
+import { RequisitionLines } from "@/components/requisition-lines";
 import { RequestDocumentList } from "@/components/request-document-list";
 import { RequestTimeline } from "@/components/request-timeline";
 import { StatusRequestSummary } from "@/components/status-request-summary";
 import { Button } from "@/components/ui/button";
 import { VenueRequestSummary } from "@/components/venue-request-summary";
 import { requireWorkspace } from "@/lib/auth/guards";
+import { fetchRequisitionDetail } from "@/lib/inventory-server";
 import { DEFAULT_STEP_DAYS, isPlaceRequestType, isVenueRequestType, stepDeadline } from "@/lib/place-requests";
 import { fetchRequestDocuments } from "@/lib/place-requests-server";
 import { EVENT_LABEL } from "@/lib/requests/labels";
@@ -23,6 +25,7 @@ import { fetchRequestDetail } from "@/lib/requests/queries";
 import { isNoticeType, isStatusType } from "@/lib/status";
 import { thaiDate, thaiDateTime } from "@/lib/thai";
 
+import { ApprovalQtyForm } from "../../inventory/requisitions/[id]/req-actions";
 import { DecisionForm, RequesterActions } from "./request-actions";
 
 export const metadata: Metadata = { title: "รายละเอียดคำขอ" };
@@ -54,6 +57,10 @@ export default async function RequestDetailPage({
     ? stepDeadline(request.pendingSince, ctx.settings.place_request_step_days ?? DEFAULT_STEP_DAYS)
     : null;
   const open = request.status === "pending" || request.status === "returned";
+  // ใบเบิกวัสดุ (ระบบที่ 7): ผู้พิจารณาเห็นทุกรายการพร้อมยอดคงเหลือปัจจุบัน และปรับจำนวนที่อนุมัติได้
+  const requisitionId =
+    request.type_key === "requisition" && typeof request.payload.requisition_id === "string" ? request.payload.requisition_id : null;
+  const requisition = requisitionId ? await fetchRequisitionDetail(requisitionId) : null;
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">
@@ -144,6 +151,29 @@ export default async function RequestDetailPage({
         </div>
       ) : null}
 
+      {requisition ? (
+        <div className="mt-6 rounded-xl border bg-card p-5" data-testid="requisition-summary">
+          <h2 className="mb-2 text-xl font-bold text-primary">รายการวัสดุที่ขอเบิก</h2>
+          <p className="mb-3 text-muted-foreground">
+            จาก{requisition.warehouse_name} · {requisition.unit_name} · ยอดคงเหลือ ณ ขณะนี้
+          </p>
+          <RequisitionLines lines={requisition.lines} showBalance={requisition.status !== "issued"} />
+          {requisition.can_decide && request.canDecide ? (
+            <div className="mt-4 rounded-lg border p-4">
+              <h3 className="mb-2 font-semibold">ปรับจำนวนที่อนุมัติ (ถ้าต้องการ)</h3>
+              <ApprovalQtyForm id={requisition.id} lines={requisition.lines} />
+            </div>
+          ) : null}
+          {ctx.allowedMenus.includes("/app/inventory") || ctx.allMenus ? (
+            <p className="mt-3">
+              <Link href={`/app/inventory/requisitions/${requisition.id}`} className="text-primary underline underline-offset-4">
+                เปิดหน้าใบเบิก (การจ่ายของ)
+              </Link>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {request.type_key === "profile_edit" ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
           <h2 className="mb-3 text-xl font-bold text-primary">รายการที่ขอแก้ไข</h2>
@@ -168,7 +198,7 @@ export default async function RequestDetailPage({
               ? "หมายเหตุ"
               : statusRequest || placeRequest || request.type_key === "budget_transfer"
                 ? "เหตุผล"
-                : request.type_key === "budget_use"
+                : request.type_key === "budget_use" || request.type_key === "requisition"
                   ? "วัตถุประสงค์"
                 : "รายละเอียด"}
           </h2>
@@ -233,7 +263,9 @@ export default async function RequestDetailPage({
                       ? `/app/budget/transfers/${request.payload.transfer_id}`
                       : request.type_key === "budget_use" && typeof request.payload.use_id === "string"
                         ? `/app/budget/uses/${request.payload.use_id}`
-                        : undefined
+                        : requisitionId
+                          ? `/app/inventory/requisitions/${requisitionId}`
+                          : undefined
               }
             />
           </div>
