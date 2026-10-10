@@ -15,7 +15,7 @@ export default async function PermissionsPage() {
   const [roles, menus] = await Promise.all([
     supabase
       .from("roles")
-      .select("key, name, requires_org_unit, personnel_view, personnel_edit, places_view, places_edit, venues_view, venues_edit")
+      .select("key, name, requires_org_unit, personnel_view, personnel_edit, places_view, places_edit, venues_view, venues_edit, budget_view, budget_edit")
       .order("sort_order"),
     supabase.from("role_menus").select("role_key, menu_href, enabled"),
   ]);

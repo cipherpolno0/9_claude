@@ -49,7 +49,9 @@ export const getAuthContext = cache(async () => {
     supabase.from("app_settings").select("key, value_int"),
     supabase.auth.mfa.listFactors(),
     supabase.from("role_menus").select("role_key, menu_href").eq("enabled", true),
-    supabase.from("roles").select("key, personnel_view, personnel_edit, places_view, places_edit, venues_view, venues_edit"),
+    supabase
+      .from("roles")
+      .select("key, personnel_view, personnel_edit, places_view, places_edit, venues_view, venues_edit, budget_view, budget_edit"),
   ]);
 
   const profile = (profileRes.data as Profile | null) ?? null;
@@ -84,6 +86,8 @@ export const getAuthContext = cache(async () => {
     places_edit: PersonnelScope;
     venues_view: PersonnelScope;
     venues_edit: PersonnelScope;
+    budget_view: PersonnelScope;
+    budget_edit: PersonnelScope;
   };
   const scopes = new Map(((scopesRes.data as ScopeRow[] | null) ?? []).map((r) => [r.key, r]));
   // มีสิทธิ์แก้ไขทะเบียนบุคคลอย่างน้อยหนึ่งเขต (สิทธิ์จริงตรวจที่ฐานข้อมูลตามเขตปกครองอีกชั้น)
@@ -102,6 +106,15 @@ export const getAuthContext = cache(async () => {
   const canViewVenues = roles.some((r) => {
     const view = scopes.get(r.role_key)?.venues_view ?? "none";
     return r.effective && (view === "all" || (view !== "none" && r.org_unit_id !== null));
+  });
+  // งบประมาณ (บทที่ 22): ดูหรือแก้ไขได้อย่างน้อยหนึ่งเขต สิทธิ์จริงตรวจที่ฐานข้อมูลตามหน่วยอีกชั้น
+  const canViewBudget = roles.some((r) => {
+    const view = scopes.get(r.role_key)?.budget_view ?? "none";
+    return r.effective && (view === "all" || (view !== "none" && r.org_unit_id !== null));
+  });
+  const canEditBudget = roles.some((r) => {
+    const edit = scopes.get(r.role_key)?.budget_edit ?? "none";
+    return r.effective && (edit === "all" || (edit !== "none" && r.org_unit_id !== null));
   });
   const canViewAllPersonnel = roles.some((r) => r.effective && scopes.get(r.role_key)?.personnel_view === "all");
 
@@ -126,6 +139,8 @@ export const getAuthContext = cache(async () => {
     canEditPlaces,
     canViewVenues,
     canEditVenues,
+    canViewBudget,
+    canEditBudget,
     canManageQuiz: effectiveKeys.some((k) => QUIZ_MANAGER_ROLES.includes(k)),
     canManageExamRounds: effectiveKeys.some((k) => EXAM_ROUND_MANAGER_ROLES.includes(k)),
     settings,

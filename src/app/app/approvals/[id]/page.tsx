@@ -4,6 +4,7 @@ import { Printer } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { Attachments } from "@/components/attachments";
+import { BudgetTransferSummary } from "@/components/budget-transfer-summary";
 import { ErrorText } from "@/components/form";
 import { ExamRegistrationSummary } from "@/components/exam-registration-summary";
 import { PlaceRequestSummary } from "@/components/place-request-summary";
@@ -121,6 +122,13 @@ export default async function RequestDetailPage({
         </div>
       ) : null}
 
+      {request.type_key === "budget_transfer" ? (
+        <div className="mt-6 rounded-xl border bg-card p-5">
+          <h2 className="mb-2 text-xl font-bold text-primary">รายละเอียดคำขอโอนเปลี่ยนแปลงงบประมาณ</h2>
+          <BudgetTransferSummary payload={request.payload} applied={request.status === "approved"} />
+        </div>
+      ) : null}
+
       {request.type_key === "profile_edit" ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
           <h2 className="mb-3 text-xl font-bold text-primary">รายการที่ขอแก้ไข</h2>
@@ -141,7 +149,11 @@ export default async function RequestDetailPage({
       {detail ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
           <h2 className="text-xl font-bold text-primary">
-            {request.type_key === "venue_open" ? "หมายเหตุ" : statusRequest || placeRequest ? "เหตุผล" : "รายละเอียด"}
+            {request.type_key === "venue_open"
+              ? "หมายเหตุ"
+              : statusRequest || placeRequest || request.type_key === "budget_transfer"
+                ? "เหตุผล"
+                : "รายละเอียด"}
           </h2>
           <p className="mt-2 whitespace-pre-wrap">{detail}</p>
         </div>
@@ -200,7 +212,9 @@ export default async function RequestDetailPage({
                   ? `/app/requests/${request.id}/edit`
                   : request.type_key === "exam_registration" && typeof request.payload.batch_id === "string"
                     ? `/app/exams/batches/${request.payload.batch_id}`
-                    : undefined
+                    : request.type_key === "budget_transfer" && typeof request.payload.transfer_id === "string"
+                      ? `/app/budget/transfers/${request.payload.transfer_id}`
+                      : undefined
               }
             />
           </div>
