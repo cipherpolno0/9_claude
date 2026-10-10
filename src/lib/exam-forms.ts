@@ -135,6 +135,9 @@ export type FormLayout = {
   marker_font?: string;
 };
 
+/** ช่องลงนามท้ายบัญชีที่พิมพ์ (บทที่ 20: ผู้ดูแลระบบตั้งเองต่อแบบ) */
+export type SignatureSlot = { text: string };
+
 export type FormTemplate = {
   id: string;
   code: string;
@@ -149,6 +152,7 @@ export type FormTemplate = {
   header_cells: HeaderCell[];
   columns: FormColumn[];
   layout: FormLayout;
+  signatures?: SignatureSlot[];
   sort_order?: number;
   is_active?: boolean;
   updated_at?: string;

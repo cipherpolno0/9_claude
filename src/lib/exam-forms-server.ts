@@ -14,7 +14,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 
 const TEMPLATE_COLUMNS =
-  "id, code, exam_type, level, sheet_name, marker_code, marker_no, version, notice, title, header_cells, columns, layout, sort_order, is_active, updated_at";
+  "id, code, exam_type, level, sheet_name, marker_code, marker_no, version, notice, title, header_cells, columns, layout, signatures, sort_order, is_active, updated_at";
 
 /** แบบฟอร์มทั้งหมด (ผู้ดูแลระบบเห็นรวมที่ปิดใช้งาน ผู้อื่นเห็นเฉพาะที่ใช้งาน ตาม RLS) */
 export async function fetchFormTemplates(): Promise<FormTemplate[]> {

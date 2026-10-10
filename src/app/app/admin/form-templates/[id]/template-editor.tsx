@@ -16,6 +16,7 @@ import {
   type FormColumn,
   type FormTemplate,
 } from "@/lib/exam-forms";
+import { MAX_SIGNATURE_LINES, MAX_SIGNATURES, signaturesProblem } from "@/lib/exam-lists";
 
 import { saveFormTemplate } from "../actions";
 
@@ -94,6 +95,8 @@ export function TemplateEditor({ template }: { template: FormTemplate }) {
   // รหัสแถวต้องเหมือนกันทั้งฝั่งเซิร์ฟเวอร์และเบราว์เซอร์ (ใช้ลำดับเดิม แถวที่เพิ่มใหม่นับต่อ)
   const [rows, setRows] = useState<Row[]>(() => template.columns.map((c, i) => ({ ...c, uid: i })));
   const nextUid = useRef(template.columns.length);
+  const [sigs, setSigs] = useState(() => (template.signatures ?? []).map((x, i) => ({ text: x.text, uid: i })));
+  const nextSig = useRef((template.signatures ?? []).length);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -114,7 +117,8 @@ export function TemplateEditor({ template }: { template: FormTemplate }) {
       delete c.uid;
       return c.type === "list" ? { ...c, options: (c.options ?? []).filter((o) => o.trim()) } : c;
     });
-    const problem = sheetNameProblem(info.sheet_name) ?? columnsProblem(columns);
+    const signatures = sigs.map((x) => ({ text: x.text })).filter((x) => x.text.trim());
+    const problem = sheetNameProblem(info.sheet_name) ?? columnsProblem(columns) ?? signaturesProblem(signatures);
     setFlash(null);
     if (problem) {
       setError(problem);
@@ -122,7 +126,7 @@ export function TemplateEditor({ template }: { template: FormTemplate }) {
     }
     startTransition(async () => {
       setError(null);
-      const result = await saveFormTemplate(template.id, { ...info, columns });
+      const result = await saveFormTemplate(template.id, { ...info, columns, signatures });
       if (result.ok) setFlash(result.message ?? null);
       else setError(result.error);
     });
@@ -300,6 +304,43 @@ export function TemplateEditor({ template }: { template: FormTemplate }) {
           }
         >
           เพิ่มคอลัมน์ท้ายสุด
+        </Button>
+      </div>
+
+      <div className="rounded-xl border bg-card p-5" data-testid="signature-editor">
+        <h2 className="text-xl font-bold text-primary">ช่องลงนามท้ายบัญชีที่พิมพ์ ({sigs.length})</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          ใช้ในหน้าพิมพ์บัญชีรายชื่อ (ตรวจรายชื่อและพิมพ์บัญชี ศ.) ทุกช่องพิมพ์เส้น “ลงชื่อ ....” ให้ แล้วตามด้วยข้อความที่กรอก
+          เช่น ชื่อในวงเล็บ หรือตำแหน่ง (ไม่เกิน {MAX_SIGNATURE_LINES} บรรทัด) ว่างไว้ = ไม่พิมพ์ช่องลงนาม
+        </p>
+        <ol className="mt-3 flex flex-col gap-3">
+          {sigs.map((x, i) => (
+            <li key={x.uid} className="flex flex-col gap-1 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor={`sig-${x.uid}`}>ช่องลงนามที่ {i + 1}</Label>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setSigs((list) => list.filter((y) => y.uid !== x.uid))}>
+                  นำออก
+                </Button>
+              </div>
+              <textarea
+                id={`sig-${x.uid}`}
+                rows={3}
+                maxLength={300}
+                value={x.text}
+                onChange={(e) => setSigs((list) => list.map((y) => (y.uid === x.uid ? { ...y, text: e.target.value } : y)))}
+                className="w-full rounded-md border border-input bg-background px-3 py-2"
+              />
+            </li>
+          ))}
+        </ol>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-3"
+          disabled={sigs.length >= MAX_SIGNATURES}
+          onClick={() => setSigs((list) => [...list, { text: "", uid: nextSig.current++ }])}
+        >
+          เพิ่มช่องลงนาม
         </Button>
       </div>
 

@@ -92,6 +92,11 @@
   size: A4;
   margin: 20mm 18mm;
 }
+/* หน้าพิมพ์แนวนอน (PrintPage orientation="landscape") */
+@page landscape {
+  size: A4 landscape;
+  margin: 10mm 10mm;
+}
 @media print {
   html {
     font-size: 16px;
@@ -104,5 +109,11 @@
   }
   .print-sheet tr {
     break-inside: avoid;
+  }
+  .print-landscape {
+    page: landscape;
+  }
+  .print-sheet thead {
+    display: table-header-group;
   }
 }

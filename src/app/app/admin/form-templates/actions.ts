@@ -10,7 +10,9 @@ import {
   isExamType,
   sheetNameProblem,
   type FormColumn,
+  type SignatureSlot,
 } from "@/lib/exam-forms";
+import { signaturesProblem } from "@/lib/exam-lists";
 import { createClient } from "@/lib/supabase/server";
 
 const PAGE = "/app/admin/form-templates";
@@ -32,6 +34,7 @@ export type TemplateInput = {
   marker_code: string;
   marker_no: number | null;
   columns: FormColumn[];
+  signatures: SignatureSlot[];
 };
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v : "").slice(0, max);
@@ -66,13 +69,18 @@ function cleanColumn(raw: FormColumn): FormColumn {
 export async function saveFormTemplate(id: string, input: TemplateInput): Promise<ActionResult> {
   if (!UUID.test(id)) return { ok: false, error: "ไม่พบแบบฟอร์มนี้" };
   const columns = (Array.isArray(input.columns) ? input.columns : []).map(cleanColumn);
+  // ช่องลงนาม: เก็บเฉพาะข้อความ ตัดบรรทัดว่างหัวท้าย (ฐานข้อมูลตรวจซ้ำด้วย trigger form_templates_signatures_check)
+  const signatures: SignatureSlot[] = (Array.isArray(input.signatures) ? input.signatures : [])
+    .map((x) => ({ text: str(x?.text, 400).replace(/\r\n?/g, "\n").replace(/^\n+|\n+$/g, "") }))
+    .filter((x) => x.text.trim() !== "");
   const problem =
     (!input.code?.trim() || input.code.length > 20 ? "กรุณากรอกรหัสแบบ (ไม่เกิน 20 ตัวอักษร)" : null) ??
     (!input.title?.trim() || input.title.length > 200 ? "กรุณากรอกชื่อบัญชี (ไม่เกิน 200 ตัวอักษร)" : null) ??
     sheetNameProblem(input.sheet_name ?? "") ??
     ((input.notice ?? "").length > 500 ? "ข้อความเตือนยาวเกิน 500 ตัวอักษร" : null) ??
     ((input.version ?? "").length > 30 ? "รุ่นของแบบยาวเกิน 30 ตัวอักษร" : null) ??
-    columnsProblem(columns);
+    columnsProblem(columns) ??
+    signaturesProblem(signatures);
   if (problem) return { ok: false, error: problem };
 
   const markerNo = input.marker_no === null || input.marker_no === undefined ? null : Number(input.marker_no);
@@ -91,6 +99,7 @@ export async function saveFormTemplate(id: string, input: TemplateInput): Promis
       marker_code: (input.marker_code ?? "").trim().slice(0, 20),
       marker_no: markerNo,
       columns,
+      signatures,
     })
     .eq("id", id)
     .select("id");
@@ -116,7 +125,7 @@ export async function copyFormTemplate(id: string): Promise<ActionResult & { id?
   const supabase = await createClient();
   const { data: src } = await supabase
     .from("form_templates")
-    .select("code, exam_type, level, sheet_name, marker_code, marker_no, version, notice, title, header_cells, columns, layout, sort_order")
+    .select("code, exam_type, level, sheet_name, marker_code, marker_no, version, notice, title, header_cells, columns, layout, signatures, sort_order")
     .eq("id", id)
     .maybeSingle();
   if (!src) return { ok: false, error: "ไม่พบแบบฟอร์มนี้" };

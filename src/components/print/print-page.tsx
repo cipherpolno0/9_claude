@@ -37,6 +37,8 @@ export function PrintPage({
   subtitle,
   unitName,
   defaultDigits = "thai",
+  orientation = "portrait",
+  showHeader = true,
   children,
 }: {
   title: string;
@@ -44,8 +46,13 @@ export function PrintPage({
   /** หน่วยงานเจ้าของเอกสาร (ค่าเริ่มต้น = ชื่อหน่วยงานของเว็บ) */
   unitName?: string;
   defaultDigits?: DigitMode;
+  /** landscape = A4 แนวนอน (เช่น บัญชี ศ. ตามแบบจริง) */
+  orientation?: "portrait" | "landscape";
+  /** false = ไม่พิมพ์หัวกระดาษกลาง (เอกสารที่มีหัวตามแบบฟอร์มของตนเอง) */
+  showHeader?: boolean;
   children: React.ReactNode;
 }) {
+  const landscape = orientation === "landscape";
   const [mode, setMode] = useState<DigitMode>(defaultDigits);
 
   return (
@@ -72,20 +79,30 @@ export function PrintPage({
           <Printer aria-hidden />
           พิมพ์ / บันทึกเป็น PDF
         </Button>
-        <p className="text-sm text-muted-foreground">ในหน้าต่างพิมพ์ เลือกขนาดกระดาษ A4 และปิด “หัวกระดาษและท้ายกระดาษ” ของเบราว์เซอร์</p>
+        <p className="text-sm text-muted-foreground">
+          ในหน้าต่างพิมพ์ เลือกขนาดกระดาษ A4{landscape ? " แนวนอน" : ""} และปิด “หัวกระดาษและท้ายกระดาษ” ของเบราว์เซอร์
+        </p>
       </div>
 
       {/* แผ่นกระดาษ A4 */}
       <div className="bg-muted px-2 py-6 print:bg-white print:p-0">
         <article
           data-testid="print-sheet"
-          className="print-sheet mx-auto w-full max-w-[210mm] bg-white px-[20mm] py-[18mm] text-black shadow-md print:max-w-none print:p-0 print:shadow-none"
+          data-orientation={orientation}
+          className={cn(
+            "print-sheet mx-auto w-full bg-white text-black shadow-md print:max-w-none print:p-0 print:shadow-none",
+            landscape ? "print-landscape max-w-[297mm] px-[10mm] py-[10mm]" : "max-w-[210mm] px-[20mm] py-[18mm]",
+          )}
         >
-          <header className="mb-6 border-b-2 border-black pb-3 text-center">
-            <p className="text-lg font-bold">{unitName ?? site.shortName}</p>
-            <h1 className="mt-1 text-xl font-bold">{digits(title, mode)}</h1>
-            {subtitle ? <p className="mt-1">{digits(subtitle, mode)}</p> : null}
-          </header>
+          {showHeader ? (
+            <header className="mb-6 border-b-2 border-black pb-3 text-center">
+              <p className="text-lg font-bold">{unitName ?? site.shortName}</p>
+              <h1 className="mt-1 text-xl font-bold">{digits(title, mode)}</h1>
+              {subtitle ? <p className="mt-1">{digits(subtitle, mode)}</p> : null}
+            </header>
+          ) : (
+            <h1 className="sr-only print:hidden">{digits(title, mode)}</h1>
+          )}
           <div className="leading-relaxed">{children}</div>
         </article>
       </div>

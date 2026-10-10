@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, UserSearch } from "lucide-react";
 
 import { findPublicMenu } from "@/lib/site";
 
@@ -16,6 +16,15 @@ export default function ExamsPage() {
       <p className="mt-2 text-muted-foreground">{menu.description}</p>
       <ul className="mt-8 grid gap-3 sm:grid-cols-2" data-testid="exams-menu">
         <li>
+          <Link href="/exams/check" prefetch={false} className="flex h-full items-start gap-3 rounded-xl border bg-card p-4 hover:bg-secondary">
+            <UserSearch className="mt-1 size-6 shrink-0 text-primary" aria-hidden />
+            <span>
+              <span className="block text-lg font-semibold text-primary">ตรวจรายชื่อผู้ขอเข้าสอบ</span>
+              <span className="block text-muted-foreground">ค้นด้วยชื่อ นามสกุลหรือฉายา และปี ว่าสำนักส่งรายชื่อเข้าสอบชั้นใด สนามสอบใด</span>
+            </span>
+          </Link>
+        </li>
+        <li>
           <Link href="/exams/stats" prefetch={false} className="flex h-full items-start gap-3 rounded-xl border bg-card p-4 hover:bg-secondary">
             <BarChart3 className="mt-1 size-6 shrink-0 text-primary" aria-hidden />
             <span>
@@ -27,7 +36,7 @@ export default function ExamsPage() {
           </Link>
         </li>
         <li className="rounded-xl border border-dashed p-4 text-muted-foreground">
-          ตรวจรายชื่อผู้ขอเข้าสอบ และค้นผลสอบ อยู่ระหว่างพัฒนา
+          ค้นผลสอบ อยู่ระหว่างพัฒนา
         </li>
       </ul>
     </section>
