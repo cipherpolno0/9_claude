@@ -12,6 +12,7 @@ import {
   type TransferStatus,
   type Warehouse,
 } from "@/lib/inventory";
+import { CONDITION_CLASS, CONDITION_LABEL, type AssetCondition } from "@/lib/assets";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -19,6 +20,9 @@ const NAV = [
   { href: "/app/inventory/requisitions", label: "ใบเบิก" },
   { href: "/app/inventory/receipts", label: "รับเข้า" },
   { href: "/app/inventory/transfers", label: "โอน" },
+  { href: "/app/inventory/assets", label: "ครุภัณฑ์" },
+  { href: "/app/inventory/counts", label: "ตรวจนับ" },
+  { href: "/app/inventory/reports", label: "รายงาน" },
   { href: "/app/inventory/settings", label: "ตั้งค่า" },
 ];
 
@@ -114,5 +118,13 @@ export function NoWarehouse({ canEdit }: { canEdit: boolean }) {
         </>
       ) : null}
     </p>
+  );
+}
+
+export function ConditionBadge({ condition }: { condition: AssetCondition }) {
+  return (
+    <span className={cn("inline-block rounded border px-2 py-0.5 text-sm", CONDITION_CLASS[condition])} data-testid="asset-condition">
+      {CONDITION_LABEL[condition] ?? condition}
+    </span>
   );
 }

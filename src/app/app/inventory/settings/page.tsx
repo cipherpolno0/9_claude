@@ -3,11 +3,13 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { WAREHOUSE_KIND_LABEL, qty } from "@/lib/inventory";
+import { fetchAssetTypes } from "@/lib/assets-server";
 import { fetchCategories, fetchInventoryEditUnits, fetchItems, fetchWarehouses } from "@/lib/inventory-server";
 import { cn } from "@/lib/utils";
 
 import { canEditUnit, loadInventory } from "../scope";
 import { InventoryNav, NoAccess } from "../ui";
+import { AssetTypeForm } from "../assets/asset-forms";
 import { CategoryForm, NewWarehouseForm, WarehouseEditor } from "./settings-forms";
 
 export const metadata: Metadata = { title: "ตั้งค่าคลังวัสดุ" };
@@ -17,6 +19,7 @@ const TABS = [
   { key: "warehouses", label: "คลัง" },
   { key: "items", label: "วัสดุ" },
   { key: "categories", label: "หมวดวัสดุ" },
+  { key: "asset-types", label: "ประเภทครุภัณฑ์" },
 ] as const;
 
 export default async function InventorySettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -52,8 +55,10 @@ export default async function InventorySettingsPage({ searchParams }: { searchPa
         <WarehousesTab canEdit={ctx.canEditInventory} />
       ) : tab === "items" ? (
         <ItemsTab canEdit={ctx.canEditInventory} showInactive={search.inactive === "1"} />
-      ) : (
+      ) : tab === "categories" ? (
         <CategoriesTab isAdmin={ctx.isAdmin} />
+      ) : (
+        <AssetTypesTab isAdmin={ctx.isAdmin} />
       )}
     </section>
   );
@@ -158,6 +163,39 @@ async function CategoriesTab({ isAdmin }: { isAdmin: boolean }) {
             <li key={c.id}>
               {c.name}
               {c.is_active ? "" : " (ปิดใช้งาน)"}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+async function AssetTypesTab({ isAdmin }: { isAdmin: boolean }) {
+  const types = await fetchAssetTypes({ includeInactive: true });
+  return (
+    <div className="mt-4 flex flex-col gap-4">
+      <p className="text-muted-foreground">
+        ตารางอายุการใช้งานของครุภัณฑ์แต่ละประเภท (ปี) ใช้คิดค่าเสื่อมราคาแบบเส้นตรง ครุภัณฑ์รายการใดกำหนดอายุเฉพาะได้ที่หน้าครุภัณฑ์
+        {isAdmin ? "" : " (เพิ่มและแก้ไขได้เฉพาะผู้ดูแลระบบ)"}
+      </p>
+      {types.length === 0 ? <p className="text-muted-foreground">ยังไม่มีประเภทครุภัณฑ์</p> : null}
+      {isAdmin ? (
+        <>
+          {types.map((t) => (
+            <div key={t.id} className="rounded-lg border bg-card p-3">
+              <AssetTypeForm t={t} />
+            </div>
+          ))}
+          <div className="rounded-xl border bg-card p-4">
+            <AssetTypeForm />
+          </div>
+        </>
+      ) : (
+        <ul className="flex flex-col gap-1" data-testid="asset-type-list">
+          {types.map((t) => (
+            <li key={t.id}>
+              {t.name} · {t.useful_life_years} ปี{t.is_active ? "" : " (ปิดใช้งาน)"}
             </li>
           ))}
         </ul>

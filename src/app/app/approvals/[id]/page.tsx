@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Printer } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import { AssetDisposalSummary } from "@/components/asset-disposal-summary";
 import { Attachments } from "@/components/attachments";
 import { BudgetTransferSummary } from "@/components/budget-transfer-summary";
 import { BudgetUseSummary } from "@/components/budget-use-summary";
@@ -174,6 +175,21 @@ export default async function RequestDetailPage({
         </div>
       ) : null}
 
+      {request.type_key === "asset_disposal" ? (
+        <div className="mt-6 rounded-xl border bg-card p-5">
+          <h2 className="mb-2 text-xl font-bold text-primary">ครุภัณฑ์ที่ขอจำหน่าย</h2>
+          <AssetDisposalSummary payload={request.payload} />
+          {typeof request.payload.asset_id === "string" && (ctx.allowedMenus.includes("/app/inventory") || ctx.allMenus) ? (
+            <p className="mt-3">
+              <Link href={`/app/inventory/assets/${request.payload.asset_id}`} className="text-primary underline underline-offset-4">
+                เปิดหน้าครุภัณฑ์ (ประวัติ ค่าเสื่อม รูปถ่าย)
+              </Link>
+            </p>
+          ) : null}
+          <p className="mt-2 text-sm text-muted-foreground">รูปถ่ายประกอบการจำหน่ายแนบที่หัวข้อ ไฟล์แนบ ด้านล่าง</p>
+        </div>
+      ) : null}
+
       {request.type_key === "profile_edit" ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
           <h2 className="mb-3 text-xl font-bold text-primary">รายการที่ขอแก้ไข</h2>
@@ -200,6 +216,8 @@ export default async function RequestDetailPage({
                 ? "เหตุผล"
                 : request.type_key === "budget_use" || request.type_key === "requisition"
                   ? "วัตถุประสงค์"
+                  : request.type_key === "asset_disposal"
+                    ? "เหตุผลที่ขอจำหน่าย"
                 : "รายละเอียด"}
           </h2>
           <p className="mt-2 whitespace-pre-wrap">{detail}</p>
@@ -265,7 +283,9 @@ export default async function RequestDetailPage({
                         ? `/app/budget/uses/${request.payload.use_id}`
                         : requisitionId
                           ? `/app/inventory/requisitions/${requisitionId}`
-                          : undefined
+                          : request.type_key === "asset_disposal" && typeof request.payload.asset_id === "string"
+                            ? `/app/inventory/assets/${request.payload.asset_id}`
+                            : undefined
               }
             />
           </div>
