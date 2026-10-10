@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { Attachments } from "@/components/attachments";
 import { BudgetTransferSummary } from "@/components/budget-transfer-summary";
+import { BudgetUseSummary } from "@/components/budget-use-summary";
 import { ErrorText } from "@/components/form";
 import { ExamRegistrationSummary } from "@/components/exam-registration-summary";
 import { PlaceRequestSummary } from "@/components/place-request-summary";
@@ -129,6 +130,20 @@ export default async function RequestDetailPage({
         </div>
       ) : null}
 
+      {request.type_key === "budget_use" ? (
+        <div className="mt-6 rounded-xl border bg-card p-5">
+          <h2 className="mb-2 text-xl font-bold text-primary">รายละเอียดคำขอใช้งบประมาณ</h2>
+          <BudgetUseSummary payload={request.payload} approved={request.status === "approved"} />
+          {typeof request.payload.use_id === "string" && ctx.allowedMenus.includes("/app/budget") ? (
+            <p className="mt-3">
+              <Link href={`/app/budget/uses/${request.payload.use_id}`} className="text-primary underline underline-offset-4">
+                เปิดหน้าคำขอใช้งบ (การเบิกจ่ายและทะเบียน)
+              </Link>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {request.type_key === "profile_edit" ? (
         <div className="mt-6 rounded-xl border bg-card p-5">
           <h2 className="mb-3 text-xl font-bold text-primary">รายการที่ขอแก้ไข</h2>
@@ -153,6 +168,8 @@ export default async function RequestDetailPage({
               ? "หมายเหตุ"
               : statusRequest || placeRequest || request.type_key === "budget_transfer"
                 ? "เหตุผล"
+                : request.type_key === "budget_use"
+                  ? "วัตถุประสงค์"
                 : "รายละเอียด"}
           </h2>
           <p className="mt-2 whitespace-pre-wrap">{detail}</p>
@@ -214,7 +231,9 @@ export default async function RequestDetailPage({
                     ? `/app/exams/batches/${request.payload.batch_id}`
                     : request.type_key === "budget_transfer" && typeof request.payload.transfer_id === "string"
                       ? `/app/budget/transfers/${request.payload.transfer_id}`
-                      : undefined
+                      : request.type_key === "budget_use" && typeof request.payload.use_id === "string"
+                        ? `/app/budget/uses/${request.payload.use_id}`
+                        : undefined
               }
             />
           </div>

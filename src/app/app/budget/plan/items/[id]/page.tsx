@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftRight, Pencil, Plus, Send } from "lucide-react";
+import { ArrowLeftRight, BookOpenCheck, FilePlus2, Pencil, Plus, Send } from "lucide-react";
 
 import { InfoText } from "@/components/form";
 import { Button } from "@/components/ui/button";
@@ -151,10 +151,19 @@ export default async function BudgetItemPage({
         </div>
       ) : null}
 
-      <dl className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3" data-testid="item-totals">
+      <dl
+        className={`mt-6 grid grid-cols-1 gap-3 ${item.kind === "category" ? "sm:grid-cols-3 lg:grid-cols-5" : "sm:grid-cols-3"}`}
+        data-testid="item-totals"
+      >
         {[
           { k: item.owned ? "วงเงิน" : "วงเงินที่ได้รับจัดสรร", v: item.received },
           { k: "จัดสรรแล้ว", v: item.allocated },
+          ...(item.kind === "category"
+            ? [
+                { k: "ผูกพัน", v: item.committed },
+                { k: "เบิกจ่ายแล้ว", v: item.disbursed },
+              ]
+            : []),
           { k: "คงเหลือ", v: item.remaining },
         ].map((t) => (
           <div key={t.k} className="rounded-xl border bg-card p-4">
@@ -192,6 +201,22 @@ export default async function BudgetItemPage({
           <Button asChild variant="outline">
             <Link href={`/app/budget/plan/items/${item.id}/allocate?${query}`} prefetch={false}>
               ปรับลดการจัดสรร
+            </Link>
+          </Button>
+        ) : null}
+        {item.kind === "category" && editableHere && Number(item.remaining) > 0 ? (
+          <Button asChild variant="outline">
+            <Link href={`/app/budget/uses/new?${qx({ item: item.id })}`} prefetch={false}>
+              <FilePlus2 aria-hidden />
+              ขอใช้งบ
+            </Link>
+          </Button>
+        ) : null}
+        {item.kind === "category" ? (
+          <Button asChild variant="outline">
+            <Link href={`/app/budget/plan/items/${item.id}/ledger?${query}`} prefetch={false}>
+              <BookOpenCheck aria-hidden />
+              ทะเบียนคุม
             </Link>
           </Button>
         ) : null}
@@ -293,7 +318,7 @@ export default async function BudgetItemPage({
         <div className="mt-6 rounded-xl border bg-card p-5">
           <h2 className="text-xl font-bold text-primary">{item.is_active ? "ปิดใช้งาน" : "เปิดใช้งาน"}</h2>
           <p className="mb-3 text-muted-foreground">
-            ระบบไม่ลบรายการ ใช้การปิดใช้งานแทน (ปิดได้เมื่อไม่มีรายการย่อยที่ใช้งาน ไม่มีการจัดสรร และไม่มีคำขอโอนค้าง)
+            ระบบไม่ลบรายการ ใช้การปิดใช้งานแทน (ปิดได้เมื่อไม่มีรายการย่อยที่ใช้งาน ไม่มีการจัดสรร ไม่มีคำขอใช้งบ และไม่มีคำขอโอนค้าง)
           </p>
           <ActiveToggle id={item.id} active={item.is_active} />
         </div>

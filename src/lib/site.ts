@@ -20,6 +20,7 @@ import {
   Users,
   Wallet,
   type LucideIcon,
+  Landmark,
 } from "lucide-react";
 
 import { REGISTRY_BASE, REGISTRY_KINDS } from "@/lib/registry";
@@ -241,6 +242,13 @@ export const adminMenu: AdminMenuItem[] = [
     href: "/app/admin/request-documents",
     description: "เอกสารที่ต้องแนบกับคำขอจัดตั้ง-ยุบสำนัก และคำขอเปิด-ปิด-ย้ายสนามสอบ ตามระเบียบ",
     icon: FileCheck,
+    adminOnly: true,
+  },
+  {
+    title: "วงเงินอนุมัติงบประมาณ",
+    href: "/app/admin/budget-limits",
+    description: "วงเงินที่เจ้าคณะและรองเจ้าคณะแต่ละชั้นอนุมัติคำขอใช้งบได้ เว้นว่าง = ส่งต่อชั้นถัดไป",
+    icon: Landmark,
     adminOnly: true,
   },
   {

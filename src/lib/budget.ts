@@ -105,6 +105,9 @@ export type BudgetItemDetail = {
   owned: boolean;
   received: number | string;
   allocated: number | string;
+  /** ผูกพันสุทธิของหน่วยที่ดู (บทที่ 23) */
+  committed: number | string;
+  disbursed: number | string;
   remaining: number | string;
   can_edit_unit: boolean;
   can_edit_item: boolean;
@@ -247,3 +250,150 @@ export function planRowFromCells(rowNumber: number, cells: string[]): PlanImport
 }
 
 export const isUuid = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);
+
+// ---------------------------------------------------------------
+// บทที่ 23: คำขอใช้งบ เบิกจ่าย ทะเบียนคุม วงเงินอนุมัติ
+// ---------------------------------------------------------------
+export const USE_STATUS_LABEL: Record<string, string> = {
+  pending: "รอพิจารณา",
+  returned: "ส่งกลับแก้ไข",
+  approved: "อนุมัติแล้ว (ผูกพัน)",
+  rejected: "ไม่อนุมัติ",
+  cancelled: "ยกเลิก",
+  closed: "ปิดแล้ว",
+};
+
+export const USE_STATUS_CLASS: Record<string, string> = {
+  ...TRANSFER_STATUS_CLASS,
+  closed: "border-slate-300 bg-slate-100 text-slate-800",
+};
+
+export const LEDGER_KIND_LABEL: Record<string, string> = {
+  budget: "วงเงิน",
+  allocation_in: "ได้รับจัดสรร",
+  allocation_out: "จัดสรรต่อ",
+  commit: "ผูกพัน",
+  disburse: "เบิกจ่าย",
+  release: "คืนเงินเหลือจ่าย",
+};
+
+/** หมวดรายจ่ายที่ต้องอ้างอิงรายการรับเข้าของระบบพัสดุ (บทที่ 25-26) */
+export const ASSET_CATEGORY_NAMES = ["ค่าวัสดุ", "ค่าครุภัณฑ์"];
+
+export type UseLine = { description: string; quantity: number | string; unit: string; unit_price: number | string; amount?: number | string };
+
+export type UseRow = {
+  id: string;
+  item_id: string;
+  item_path: string;
+  purpose: string;
+  amount: number | string;
+  status: string;
+  request_id: string | null;
+  request_no: string | null;
+  committed: number | string;
+  disbursed: number | string;
+  released: number | string;
+  outstanding: number | string;
+  created_at: string;
+  approved_at: string | null;
+  requester_name: string | null;
+};
+
+export type UseDetail = {
+  id: string;
+  item_id: string;
+  item_path: string;
+  category_name: string | null;
+  org_unit_id: string;
+  unit_name: string;
+  year_be: number;
+  year_open: boolean;
+  purpose: string;
+  lines: UseLine[];
+  amount: number | string;
+  status: string;
+  request_id: string | null;
+  request_no: string | null;
+  committed: number | string;
+  disbursed: number | string;
+  released: number | string;
+  outstanding: number | string;
+  approved_at: string | null;
+  released_at: string | null;
+  release_reason: string;
+  created_at: string;
+  is_mine: boolean;
+  can_edit: boolean;
+};
+
+export type DisbursementRow = {
+  id: string;
+  kind: "payment" | "adjustment";
+  installment_no: number;
+  adjusts_id: string | null;
+  paid_on: string;
+  payee: string;
+  amount: number | string;
+  voucher_no: string;
+  note: string;
+  reason: string;
+  asset_receipt_ref: string | null;
+  created_at: string;
+  created_by_name: string | null;
+  attachment_count: number;
+};
+
+export type SpendSummary = { item_id: string; committed: number | string; disbursed: number | string };
+
+export type LedgerRow = {
+  happened_on: string;
+  happened_at: string;
+  kind: string;
+  description: string;
+  ref_no: string;
+  received: number | string;
+  committed: number | string;
+  disbursed: number | string;
+  balance: number | string;
+  outstanding: number | string;
+};
+
+export type ApprovalLimit = { id: string; level: string; role_key: string; max_amount: number | string | null; updated_at: string };
+
+/** ผลรวมเงินแบบสตางค์ (กันทศนิยมลอยตัวคลาด) ใช้แสดงผลเท่านั้น */
+export function sumMoney(values: (number | string | null | undefined)[]): number {
+  return values.reduce<number>((a, v) => a + Math.round(Number(v ?? 0) * 100), 0) / 100;
+}
+
+/** ยอดของแต่ละบรรทัด = จำนวน x ราคาต่อหน่วย ปัดสองตำแหน่ง (ตรงกับ private.budget_use_lines) */
+export function lineAmount(quantity: string, unitPrice: string): number | null {
+  const q = parseMoney(quantity);
+  const p = parseMoney(unitPrice);
+  if (q === null || p === null) return null;
+  return Math.round(Number(q) * Number(p) * 100) / 100;
+}
+
+/** ยอดผูกพันและเบิกจ่ายต่อแถวของต้นไม้ (ชั้นบน = ผลรวมของชั้นล่าง) จากผลของ budget_spend_summary */
+export function treeSpend(roots: BudgetTreeNode[], summary: Map<string, SpendSummary>) {
+  const out = new Map<string, { committed: number; disbursed: number }>();
+  const walk = (n: BudgetTreeNode): { committed: number; disbursed: number } => {
+    const own = summary.get(n.id);
+    const acc = { committed: Math.round(Number(own?.committed ?? 0) * 100), disbursed: Math.round(Number(own?.disbursed ?? 0) * 100) };
+    for (const c of n.children) {
+      const x = walk(c);
+      if (!c.is_active) continue;
+      acc.committed += Math.round(x.committed * 100);
+      acc.disbursed += Math.round(x.disbursed * 100);
+    }
+    const v = { committed: acc.committed / 100, disbursed: acc.disbursed / 100 };
+    out.set(n.id, v);
+    return v;
+  };
+  roots.forEach(walk);
+  const active = roots.filter((r) => r.is_active).map((r) => out.get(r.id)!);
+  return {
+    byId: out,
+    total: { committed: sumMoney(active.map((a) => a.committed)), disbursed: sumMoney(active.map((a) => a.disbursed)) },
+  };
+}

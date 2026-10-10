@@ -6,6 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 
 import type {
   AllocationRow,
+  ApprovalLimit,
+  DisbursementRow,
+  LedgerRow,
+  SpendSummary,
+  UseDetail,
+  UseRow,
   BudgetItemDetail,
   BudgetOption,
   BudgetTreeRow,
@@ -129,4 +135,51 @@ export async function fetchTransfer(id: string): Promise<TransferRecord | null> 
     .eq("id", id)
     .maybeSingle();
   return (data as TransferRecord | null) ?? null;
+}
+
+// ---------------------------------------------------------------
+// บทที่ 23
+// ---------------------------------------------------------------
+export async function fetchUseRows(yearId: string, unitId: string): Promise<UseRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_use_rows", { p_year: yearId, p_unit: unitId });
+  if (error) throw error;
+  return (data as UseRow[] | null) ?? [];
+}
+
+export async function fetchUseDetail(id: string): Promise<UseDetail | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_use_detail", { p_id: id });
+  if (error) return null;
+  return (data as UseDetail | null) ?? null;
+}
+
+export async function fetchDisbursementRows(useId: string): Promise<DisbursementRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_disbursement_rows", { p_use: useId });
+  if (error) return [];
+  return (data as DisbursementRow[] | null) ?? [];
+}
+
+export async function fetchSpendSummary(yearId: string, unitId: string): Promise<Map<string, SpendSummary>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_spend_summary", { p_year: yearId, p_unit: unitId });
+  if (error) throw error;
+  return new Map(((data as SpendSummary[] | null) ?? []).map((r) => [r.item_id, r]));
+}
+
+export async function fetchLedger(itemId: string, unitId: string): Promise<LedgerRow[] | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("budget_ledger", { p_item: itemId, p_unit: unitId });
+  if (error) return null;
+  return (data as LedgerRow[] | null) ?? [];
+}
+
+export async function fetchApprovalLimits(): Promise<ApprovalLimit[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("budget_approval_limits")
+    .select("id, level, role_key, max_amount, updated_at");
+  if (error) throw error;
+  return (data as ApprovalLimit[] | null) ?? [];
 }

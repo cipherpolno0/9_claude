@@ -3,8 +3,8 @@ import Link from "next/link";
 import { Download, FileSpreadsheet, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { FISCAL_STATUS_LABEL, KIND_LABEL, PLAN_IMPORT_HEADERS, baht, buildBudgetTree, flattenTree, treeTotals } from "@/lib/budget";
-import { fetchBudgetTree } from "@/lib/budget-server";
+import { FISCAL_STATUS_LABEL, KIND_LABEL, PLAN_IMPORT_HEADERS, baht, buildBudgetTree, flattenTree, treeSpend, treeTotals } from "@/lib/budget";
+import { fetchBudgetTree, fetchSpendSummary } from "@/lib/budget-server";
 import { thaiDate } from "@/lib/thai";
 
 import { UnitFilter } from "../../personnel/unit-filter";
@@ -21,8 +21,11 @@ export default async function BudgetPlanPage({ searchParams }: { searchParams: P
   const search = await searchParams;
   const { ctx, years, year, units, unit, unitEditable } = await loadBudgetScope(search);
   const showInactive = search.inactive === "1";
-  const rows = year && unit ? await fetchBudgetTree(year.id, unit.id, showInactive) : [];
+  const [rows, summary] = year && unit
+    ? await Promise.all([fetchBudgetTree(year.id, unit.id, showInactive), fetchSpendSummary(year.id, unit.id)])
+    : [[], new Map()];
   const tree = buildBudgetTree(rows);
+  const spend = treeSpend(tree, summary);
   const flat = flattenTree(tree);
   const totals = treeTotals(tree.filter((n) => n.is_active));
   const canEdit = Boolean(year && unit && unitEditable && year.status === "open");
@@ -38,7 +41,7 @@ export default async function BudgetPlanPage({ searchParams }: { searchParams: P
       <h1 className="mt-2 text-2xl font-bold text-primary sm:text-3xl">แผนงบประมาณและการจัดสรร</h1>
       <p className="mt-1 text-muted-foreground">
         วงเงิน = ยอดที่หน่วยได้รับ (หน่วยเจ้าของงบ = วงเงินของรายการ / หน่วยอื่น = ยอดที่หน่วยเหนือจัดสรรลงมา) · จัดสรรแล้ว = ยอดที่หน่วยนี้จัดสรรต่อลงล่าง ·
-        คงเหลือ = วงเงิน - จัดสรรแล้ว
+        ผูกพัน = คำขอใช้งบที่อนุมัติแล้ว (หักคืนเงินเหลือจ่าย) · คงเหลือ = วงเงิน - จัดสรรแล้ว - ผูกพัน
       </p>
 
       {years.length === 0 ? (
@@ -75,10 +78,12 @@ export default async function BudgetPlanPage({ searchParams }: { searchParams: P
             </p>
           ) : null}
 
-          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-testid="budget-totals">
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5" data-testid="budget-totals">
             {[
               { k: "วงเงินที่ได้รับ", v: totals.received },
               { k: "จัดสรรแล้ว", v: totals.allocated },
+              { k: "ผูกพัน", v: spend.total.committed },
+              { k: "เบิกจ่ายแล้ว", v: spend.total.disbursed },
               { k: "คงเหลือ", v: totals.remaining },
             ].map((t) => (
               <div key={t.k} className="rounded-xl border bg-card p-4">
@@ -132,13 +137,15 @@ export default async function BudgetPlanPage({ searchParams }: { searchParams: P
             </p>
           ) : (
             <div className="relative overflow-x-auto rounded-xl border bg-card">
-              <table className="w-full min-w-[720px] border-collapse text-left" data-testid="budget-tree">
+              <table className="w-full min-w-[900px] border-collapse text-left" data-testid="budget-tree">
                 <caption className="sr-only">ต้นไม้งบประมาณของ {unit.name} ปีงบประมาณ {year?.year_be}</caption>
                 <thead className="bg-secondary">
                   <tr>
                     <th scope="col" className="px-3 py-2">รายการ</th>
                     <th scope="col" className="px-3 py-2 text-right">วงเงิน (บาท)</th>
                     <th scope="col" className="px-3 py-2 text-right">จัดสรรแล้ว</th>
+                    <th scope="col" className="px-3 py-2 text-right">ผูกพัน</th>
+                    <th scope="col" className="px-3 py-2 text-right">เบิกจ่าย</th>
                     <th scope="col" className="px-3 py-2 text-right">คงเหลือ</th>
                     <th scope="col" className="px-3 py-2">
                       <span className="sr-only">ทำรายการ</span>
@@ -174,6 +181,8 @@ export default async function BudgetPlanPage({ searchParams }: { searchParams: P
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums">{baht(n.received)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{baht(n.allocated)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums" data-col="committed">{baht(spend.byId.get(n.id)?.committed ?? 0)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums" data-col="disbursed">{baht(spend.byId.get(n.id)?.disbursed ?? 0)}</td>
                         <td className={`px-3 py-2 text-right tabular-nums ${Number(n.remaining) < 0 ? "text-destructive" : ""}`}>
                           {baht(n.remaining)}
                         </td>
