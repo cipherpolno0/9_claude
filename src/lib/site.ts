@@ -65,6 +65,8 @@ export const publicMenu: MenuItem[] = [
     children: [
       { title: "ตรวจรายชื่อผู้ขอเข้าสอบ", href: "/exams/check" },
       { title: "สถิติสมัครสอบ", href: "/exams/stats" },
+      { title: "ค้นผลสอบ", href: "/exams/results" },
+      { title: "สถิติผลสอบ", href: "/exams/result-stats" },
     ],
   },
   {

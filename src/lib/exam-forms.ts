@@ -45,6 +45,9 @@ export type ExamRound = {
   note: string;
   is_active: boolean;
   updated_at: string;
+  /** บทที่ 21: สถานะผลสอบ draft / published และวันที่ประกาศ */
+  result_status?: "draft" | "published";
+  results_announced_on?: string | null;
 };
 
 /** สถานะการรับสมัครของรอบในวันนี้ (ตรงกับ private.exam_round_accepting ในฐานข้อมูล) */

@@ -39,6 +39,9 @@ export default async function WorkspaceExamsPage({ searchParams }: { searchParam
       title: "ตรวจรายชื่อและพิมพ์บัญชี ศ.",
       text: "บัญชีรายชื่อตามแบบ ศ. ต่อสนามสอบหรือสำนัก พิมพ์ A4 แนวนอน ตรวจสอบรายบุคคล และรายงานสรุป",
     },
+    ctx.canManageExamRounds
+      ? { href: "/app/exams/results", title: "ผลสอบ", text: "นำเข้าผลสอบจาก Excel แก้ผล ประกาศผล ผลสอบได้ย้อนหลัง และบัญชีผู้สอบได้ ศ.๔ ศ.๘ (ส่วนกลาง)" }
+      : { href: "/app/exams/results/lists", title: "บัญชีผู้สอบได้ ศ.๔ ศ.๘", text: "รายชื่อผู้สอบได้ของสำนักหรือสนามสอบในเขต เมื่อประกาศผลแล้ว พิมพ์และส่งออก Excel" },
     ...(ctx.canManageExamRounds
       ? [{ href: "/app/exams/totals", title: "ยอดผู้สมัครต่อสนามสอบ", text: "ยอดจากบัญชีที่ส่งแล้ว ส่งออก Excel ใช้จัดเตรียมข้อสอบ (ส่วนกลาง)" }]
       : []),
@@ -47,6 +50,7 @@ export default async function WorkspaceExamsPage({ searchParams }: { searchParam
       : []),
     { href: "/downloads", title: "แม่แบบเปล่าและคู่มือการกรอก", text: "หน้าดาวน์โหลดสาธารณะ ใช้ได้โดยไม่ต้องล็อกอิน" },
     { href: "/exams/check", title: "ตรวจรายชื่อผู้ขอเข้าสอบ (สาธารณะ)", text: "ให้ผู้สมัครตรวจรายชื่อของตนเองด้วยชื่อ นามสกุลหรือฉายา และปี" },
+    { href: "/exams/results", title: "ค้นผลสอบ (สาธารณะ)", text: "รายชื่อผู้สอบได้ที่ประกาศแล้ว และสถิติผลสอบ" },
     { href: "/exams/stats", title: "สถิติสมัครสอบ (สาธารณะ)", text: "จำนวนผู้สมัครแยกตามปี ประเภท ชั้น ช่วงชั้น ภาค จังหวัด" },
   ];
 
@@ -54,7 +58,7 @@ export default async function WorkspaceExamsPage({ searchParams }: { searchParam
     <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-10">
       <h1 className="text-2xl font-bold text-primary sm:text-3xl">{menu.title}</h1>
       <p className="mt-1 text-muted-foreground">
-        สมัครสอบนักธรรมและธรรมศึกษาด้วยแฟ้ม Excel บัญชี ศ. ตามแบบของสำนักงานแม่กองธรรม (ผลสอบจะเพิ่มในบทต่อไป)
+        สมัครสอบนักธรรมและธรรมศึกษาด้วยแฟ้ม Excel บัญชี ศ. ตามแบบของสำนักงานแม่กองธรรม และผลสอบที่ประกาศแล้ว
       </p>
       {denied ? (
         <p role="alert" className="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3">

@@ -67,7 +67,7 @@ export async function fetchExamRounds(): Promise<ExamRound[]> {
   const { data } = await supabase
     .from("exam_rounds")
     .select(
-      "id, academic_year_id, exam_type, level, opens_on, closes_on, exam_starts_on, exam_ends_on, status, note, is_active, updated_at, academic_years(year_be)",
+      "id, academic_year_id, exam_type, level, opens_on, closes_on, exam_starts_on, exam_ends_on, status, note, is_active, updated_at, result_status, results_announced_on, academic_years(year_be)",
     );
   const levelOrder = { tri: 1, tho: 2, ek: 3 } as const;
   return ((data as RoundRow[] | null) ?? [])

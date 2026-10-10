@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, UserSearch } from "lucide-react";
+import { Award, BarChart3, PieChart, UserSearch } from "lucide-react";
 
 import { findPublicMenu } from "@/lib/site";
 
@@ -35,8 +35,23 @@ export default function ExamsPage() {
             </span>
           </Link>
         </li>
-        <li className="rounded-xl border border-dashed p-4 text-muted-foreground">
-          ค้นผลสอบ อยู่ระหว่างพัฒนา
+        <li>
+          <Link href="/exams/results" prefetch={false} className="flex h-full items-start gap-3 rounded-xl border bg-card p-4 hover:bg-secondary">
+            <Award className="mt-1 size-6 shrink-0 text-primary" aria-hidden />
+            <span>
+              <span className="block text-lg font-semibold text-primary">ค้นผลสอบ</span>
+              <span className="block text-muted-foreground">รายชื่อผู้สอบได้ที่ประกาศแล้ว ค้นด้วยชื่อ หรือดูตามจังหวัดและสำนัก</span>
+            </span>
+          </Link>
+        </li>
+        <li>
+          <Link href="/exams/result-stats" prefetch={false} className="flex h-full items-start gap-3 rounded-xl border bg-card p-4 hover:bg-secondary">
+            <PieChart className="mt-1 size-6 shrink-0 text-primary" aria-hidden />
+            <span>
+              <span className="block text-lg font-semibold text-primary">สถิติผลสอบ</span>
+              <span className="block text-muted-foreground">ส่งสอบ ขาดสอบ สอบได้ ร้อยละสอบได้ แยกปี ชั้น ภาค จังหวัด</span>
+            </span>
+          </Link>
         </li>
       </ul>
     </section>

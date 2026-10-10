@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 
 import { requireAdmin } from "@/lib/auth/guards";
 import { fetchFormTemplates, fetchTitleOptions } from "@/lib/exam-forms-server";
+import { fetchResultForms } from "@/lib/exam-results-server";
 
+import { ResultFormsEditor } from "./result-forms-editor";
 import { TemplateList, TitleOptionsManager } from "./template-list";
 
 export const metadata: Metadata = { title: "แบบฟอร์มบัญชี ศ." };
@@ -10,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function FormTemplatesPage() {
   await requireAdmin();
-  const [templates, titles] = await Promise.all([fetchFormTemplates(), fetchTitleOptions()]);
+  const [templates, titles, resultForms] = await Promise.all([fetchFormTemplates(), fetchTitleOptions(), fetchResultForms()]);
 
   return (
     <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-10">
@@ -22,6 +24,7 @@ export default async function FormTemplatesPage() {
       </p>
       <TemplateList templates={templates} />
       <TitleOptionsManager options={titles} />
+      <ResultFormsEditor forms={resultForms} />
     </section>
   );
 }
