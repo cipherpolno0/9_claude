@@ -51,7 +51,7 @@ export const getAuthContext = cache(async () => {
     supabase.from("role_menus").select("role_key, menu_href").eq("enabled", true),
     supabase
       .from("roles")
-      .select("key, personnel_view, personnel_edit, places_view, places_edit, venues_view, venues_edit, budget_view, budget_edit, inventory_view, inventory_edit"),
+      .select("key, personnel_view, personnel_edit, places_view, places_edit, venues_view, venues_edit, budget_view, budget_edit, inventory_view, inventory_edit, docs_view, docs_edit"),
   ]);
 
   const profile = (profileRes.data as Profile | null) ?? null;
@@ -90,6 +90,8 @@ export const getAuthContext = cache(async () => {
     budget_edit: PersonnelScope;
     inventory_view: PersonnelScope;
     inventory_edit: PersonnelScope;
+    docs_view: PersonnelScope;
+    docs_edit: PersonnelScope;
   };
   const scopes = new Map(((scopesRes.data as ScopeRow[] | null) ?? []).map((r) => [r.key, r]));
   // มีสิทธิ์แก้ไขทะเบียนบุคคลอย่างน้อยหนึ่งเขต (สิทธิ์จริงตรวจที่ฐานข้อมูลตามเขตปกครองอีกชั้น)
@@ -127,6 +129,9 @@ export const getAuthContext = cache(async () => {
     const edit = scopes.get(r.role_key)?.inventory_edit ?? "none";
     return r.effective && (edit === "all" || (edit !== "none" && r.org_unit_id !== null));
   });
+  // สารบรรณ (บทที่ 27): เฉพาะหน่วยตน ดู = เห็นทะเบียนของหน่วย / ลงทะเบียน = ลงรับ ร่าง ออกเลข ส่ง ยกเลิก
+  const canViewDocs = roles.some((r) => r.effective && r.org_unit_id !== null && scopes.get(r.role_key)?.docs_view === "own");
+  const canEditDocs = roles.some((r) => r.effective && r.org_unit_id !== null && scopes.get(r.role_key)?.docs_edit === "own");
   const canViewAllPersonnel = roles.some((r) => r.effective && scopes.get(r.role_key)?.personnel_view === "all");
 
   return {
@@ -154,6 +159,8 @@ export const getAuthContext = cache(async () => {
     canEditInventory,
     canViewBudget,
     canEditBudget,
+    canViewDocs,
+    canEditDocs,
     canManageQuiz: effectiveKeys.some((k) => QUIZ_MANAGER_ROLES.includes(k)),
     canManageExamRounds: effectiveKeys.some((k) => EXAM_ROUND_MANAGER_ROLES.includes(k)),
     settings,

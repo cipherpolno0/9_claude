@@ -21,15 +21,19 @@ export type RoleRow = {
   budget_edit: PersonnelScope;
   inventory_view: PersonnelScope;
   inventory_edit: PersonnelScope;
+  docs_view: PersonnelScope;
+  docs_edit: PersonnelScope;
 };
 
 /** ระบบที่ตั้งขอบเขตดู/แก้ไขได้ (เพิ่มระบบใหม่ที่นี่ คู่กับคอลัมน์ <area>_view / <area>_edit ใน roles) */
-const AREAS: { key: ScopeArea; title: string; menu: string; menuTitle: string }[] = [
+const AREAS: { key: ScopeArea; title: string; menu: string; menuTitle: string; ownOnly?: boolean; editLabel?: string }[] = [
   { key: "personnel", title: "ทะเบียนบุคคล", menu: "/app/personnel", menuTitle: "บุคลากร" },
   { key: "places", title: "ทะเบียนสถานที่", menu: "/app/places", menuTitle: "ทะเบียนสถานที่" },
   { key: "venues", title: "ทะเบียนสนามสอบ", menu: "/app/places", menuTitle: "ทะเบียนสถานที่" },
   { key: "budget", title: "งบประมาณ", menu: "/app/budget", menuTitle: "งบประมาณ" },
   { key: "inventory", title: "คลังวัสดุ", menu: "/app/inventory", menuTitle: "พัสดุ-ครุภัณฑ์" },
+  // สารบรรณ: เห็นเฉพาะหนังสือของหน่วยตนและที่ส่งถึงตน (ผู้สั่งงานกำหนด) จึงเลือกได้เพียง ไม่ได้ / เฉพาะหน่วยตน
+  { key: "docs", title: "สารบรรณ", menu: "/app/docs", menuTitle: "สารบรรณ", ownOnly: true, editLabel: "ลงรับ ร่าง ออกเลข ส่งได้" },
 ];
 export type MenuRow = { role_key: string; menu_href: string; enabled: boolean };
 
@@ -107,6 +111,10 @@ export function PermissionsManager({
           <li>ขอบเขตทะเบียนบุคคลใช้กับ ข้อมูลบุคคล ตำแหน่งปกครอง ทะเบียน จศป. และคำขอเปลี่ยนสถานะ</li>
           <li>ขอบเขตทะเบียนสถานที่ใช้กับ วัด สำนักเรียน สำนักศาสนศึกษา สถานศึกษา และองค์กร ตามเขตปกครองคณะสงฆ์ที่สังกัด</li>
           <li>
+            สารบรรณเลือกได้เพียง ไม่ได้ หรือ เฉพาะหน่วยตน ผู้ดูแลระบบไม่เห็นตัวหนังสือ (ตั้งค่าหัวหนังสือได้ทุกหน่วย)
+            หนังสือที่มีชั้นความลับเห็นเฉพาะผู้ที่ระบุชื่อและผู้ลงทะเบียน
+          </li>
+          <li>
             ขอบเขตทะเบียนสนามสอบใช้กับ สนามสอบ ประธานสนามสอบ และผู้รับข้อสอบ (มีที่อยู่จัดส่งข้อสอบและเบอร์ติดต่อ)
             หน้าสนามสอบอยู่ในเมนู ทะเบียนสถานที่
           </li>
@@ -152,7 +160,9 @@ export function PermissionsManager({
 
             {AREAS.map((area) => {
               const scope = scopes[`${role.key}|${area.key}`];
-              const options = optionsOf(scope);
+              const options = area.ownOnly
+                ? PERSONNEL_SCOPES.filter((s) => s === "none" || (s === "own" && role.requires_org_unit))
+                : optionsOf(scope);
               return (
                 <div key={area.key} data-area={area.key}>
                   <p className="mt-5 font-semibold">{area.title}</p>
@@ -174,13 +184,13 @@ export function PermissionsManager({
                       </select>
                     </label>
                     <label className="flex flex-col gap-1">
-                      <span>เพิ่มและแก้ไขได้</span>
+                      <span>{area.editLabel ?? "เพิ่มและแก้ไขได้"}</span>
                       <select
                         className={selectClass}
                         value={scope.edit}
                         disabled={pending || locked}
                         onChange={(e) => changeScope(role, area.key, "edit", e.target.value as PersonnelScope)}
-                        aria-label={`${role.name}: แก้ไข${area.title}`}
+                        aria-label={`${role.name}: ${area.ownOnly ? "ลงทะเบียน" : "แก้ไข"}${area.title}`}
                       >
                         {options.map((s) => (
                           <option key={s} value={s}>
@@ -190,6 +200,9 @@ export function PermissionsManager({
                       </select>
                     </label>
                   </div>
+                  {locked && area.ownOnly ? (
+                    <p className="mt-2 text-sm text-muted-foreground">ผู้ดูแลระบบไม่เห็นตัวหนังสือ แต่ตั้งค่าหัวหนังสือได้ทุกหน่วย</p>
+                  ) : null}
                   {scope.view !== "none" && !locked && !(enabled[`${role.key}|${area.menu}`] ?? false) ? (
                     <p className="mt-2 text-sm text-destructive">
                       บทบาทนี้มีสิทธิ์ดู{area.title} แต่ยังไม่ได้เปิดเมนู {area.menuTitle} จึงเข้าหน้าทะเบียนไม่ได้

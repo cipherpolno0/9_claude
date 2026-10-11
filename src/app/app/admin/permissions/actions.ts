@@ -28,7 +28,9 @@ export async function setRoleMenu(roleKey: string, href: string, enabled: boolea
 }
 
 /** ระบบที่มีขอบเขตดู/แก้ไขตามเขตปกครอง: คอลัมน์ใน roles คือ <area>_view และ <area>_edit */
-const SCOPE_AREAS = ["personnel", "places", "venues", "budget", "inventory"] as const;
+const SCOPE_AREAS = ["personnel", "places", "venues", "budget", "inventory", "docs"] as const;
+/** ระบบที่ตั้งได้เฉพาะ ไม่ได้ / หน่วยตน (สารบรรณ: ผู้สั่งงานกำหนดให้เห็นเฉพาะหน่วยตน) */
+const OWN_ONLY_AREAS: readonly string[] = ["docs"];
 export type ScopeArea = (typeof SCOPE_AREAS)[number];
 
 export async function setRoleScope(
@@ -40,6 +42,9 @@ export async function setRoleScope(
   if (roleKey === "admin") return { ok: false, error: "ผู้ดูแลระบบดูและแก้ไขได้ทุกเขตเสมอ" };
   if (!SCOPE_AREAS.includes(area) || !PERSONNEL_SCOPES.includes(view) || !PERSONNEL_SCOPES.includes(edit)) {
     return { ok: false, error: "ค่าที่เลือกไม่ถูกต้อง" };
+  }
+  if (OWN_ONLY_AREAS.includes(area) && (!["none", "own"].includes(view) || !["none", "own"].includes(edit))) {
+    return { ok: false, error: "ระบบนี้ตั้งได้เพียง ไม่ได้ หรือ เฉพาะหน่วยตน" };
   }
   if (scopeRank(edit) > scopeRank(view)) {
     return { ok: false, error: "สิทธิ์แก้ไขกว้างกว่าสิทธิ์ดูไม่ได้" };
