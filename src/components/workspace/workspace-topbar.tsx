@@ -46,12 +46,12 @@ export function WorkspaceTopbar({ access, userName }: { access: NavAccess; userN
         </SheetContent>
       </Sheet>
 
-      <form role="search" className="relative min-w-0 flex-1 sm:max-w-md" action="#">
+      <form role="search" className="relative min-w-0 flex-1 sm:max-w-md" action="/app/search" method="get" data-testid="global-search">
         <Search
           className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground"
           aria-hidden
         />
-        <Input type="search" name="q" aria-label="ค้นหา" placeholder="ค้นหา..." className="pl-10" />
+        <Input type="search" name="q" aria-label="ค้นหาทั้งพื้นที่ทำงาน" placeholder="ค้นหาบุคคล สถานที่ คำขอ หนังสือ..." className="pl-10" minLength={2} maxLength={100} />
       </form>
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">

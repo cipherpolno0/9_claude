@@ -21,6 +21,10 @@ import {
   Wallet,
   type LucideIcon,
   Landmark,
+  Megaphone,
+  FileDown,
+  CalendarDays,
+  Phone,
 } from "lucide-react";
 
 import { REGISTRY_BASE, REGISTRY_KINDS } from "@/lib/registry";
@@ -184,10 +188,47 @@ export const adminRoot: MenuItem = {
   icon: Settings,
 };
 
-export type AdminMenuItem = MenuItem & { adminOnly: boolean };
+/** content = หน้าจัดการเนื้อหาของเว็บ (ผู้ดูแลระบบและส่วนกลางเห็น ผู้อนุมัติบัญชีอื่นไม่เห็น) */
+export type AdminMenuItem = MenuItem & { adminOnly: boolean; content?: boolean };
+
+/** เมนูผู้ดูแลระบบที่ผู้ใช้เห็น */
+export function visibleAdminMenu(ctx: { isAdmin: boolean; canManageSiteContent: boolean }): AdminMenuItem[] {
+  return adminMenu.filter((item) => ctx.isAdmin || (!item.adminOnly && (!item.content || ctx.canManageSiteContent)));
+}
 
 /** adminOnly = เฉพาะผู้ดูแลระบบ / ไม่ใช่ = ผู้อนุมัติบัญชี (เจ้าคณะ รองเจ้าคณะ เลขานุการ ส่วนกลาง) เห็นด้วย */
 export const adminMenu: AdminMenuItem[] = [
+  {
+    title: "ข่าวประกาศ",
+    href: "/app/admin/announcements",
+    description: "ข่าวบนหน้าแรก ปักหมุด วันเผยแพร่ วันหมดอายุ และไฟล์แนบ",
+    icon: Megaphone,
+    adminOnly: false,
+    content: true,
+  },
+  {
+    title: "ดาวน์โหลด",
+    href: "/app/admin/downloads",
+    description: "แบบฟอร์ม แม่แบบ Excel คู่มือ ปฏิทิน ระเบียบและประกาศ บนหน้าดาวน์โหลด",
+    icon: FileDown,
+    adminOnly: false,
+    content: true,
+  },
+  {
+    title: "ปฏิทินงานสอบ",
+    href: "/app/admin/calendar",
+    description: "รายการปฏิทินบนหน้าแรกที่เพิ่มเอง (วันจากรอบสมัครสอบขึ้นให้อัตโนมัติ)",
+    icon: CalendarDays,
+    adminOnly: false,
+    content: true,
+  },
+  {
+    title: "ติดต่อเรา",
+    href: "/app/admin/contact",
+    description: "ที่อยู่ โทรศัพท์ อีเมล แผนที่ เวลาทำการ และผู้รับข้อความแต่ละหัวข้อ",
+    icon: Phone,
+    adminOnly: true,
+  },
   {
     title: "บัญชีผู้ใช้",
     href: "/app/admin/users",

@@ -36,15 +36,19 @@ export function ThaiDateInput({
   required,
   hint,
   className,
+  id,
 }: {
   label: string;
   name: string;
+  /** คำนำหน้ารหัสช่อง (ใช้เมื่อมีฟอร์มเดียวกันหลายชุดในหน้าเดียว) ค่าเริ่มต้น = name */
+  id?: string;
   /** YYYY-MM-DD */
   defaultValue?: string | null;
   required?: boolean;
   hint?: string;
   className?: string;
 }) {
+  const base = id ?? name;
   const initial = defaultValue?.match(/^(\d{4})-(\d{2})-(\d{2})/);
   const [day, setDay] = useState(initial ? String(Number(initial[3])) : "");
   const [month, setMonth] = useState(initial ? String(Number(initial[2])) : "");
@@ -64,10 +68,10 @@ export function ThaiDateInput({
       <input type="hidden" name={`${name}_incomplete`} value={incomplete ? "1" : ""} />
       <div className="grid grid-cols-[5rem_1fr_6.5rem] gap-2">
         <div>
-          <Label htmlFor={`${name}-day`} className="sr-only">
+          <Label htmlFor={`${base}-day`} className="sr-only">
             {label}: วัน
           </Label>
-          <select id={`${name}-day`} className={selectClass} value={day} onChange={(e) => setDay(e.target.value)}>
+          <select id={`${base}-day`} className={selectClass} value={day} onChange={(e) => setDay(e.target.value)}>
             <option value="">วัน</option>
             {Array.from({ length: 31 }, (_, i) => (
               <option key={i + 1} value={i + 1}>
@@ -77,10 +81,10 @@ export function ThaiDateInput({
           </select>
         </div>
         <div>
-          <Label htmlFor={`${name}-month`} className="sr-only">
+          <Label htmlFor={`${base}-month`} className="sr-only">
             {label}: เดือน
           </Label>
-          <select id={`${name}-month`} className={selectClass} value={month} onChange={(e) => setMonth(e.target.value)}>
+          <select id={`${base}-month`} className={selectClass} value={month} onChange={(e) => setMonth(e.target.value)}>
             <option value="">เดือน</option>
             {THAI_MONTHS.map((m, i) => (
               <option key={m} value={i + 1}>
@@ -90,11 +94,11 @@ export function ThaiDateInput({
           </select>
         </div>
         <div>
-          <Label htmlFor={`${name}-year`} className="sr-only">
+          <Label htmlFor={`${base}-year`} className="sr-only">
             {label}: ปี พ.ศ.
           </Label>
           <Input
-            id={`${name}-year`}
+            id={`${base}-year`}
             inputMode="numeric"
             maxLength={4}
             placeholder="พ.ศ."

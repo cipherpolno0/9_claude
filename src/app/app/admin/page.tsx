@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { requireAccountManager } from "@/lib/auth/guards";
-import { adminMenu } from "@/lib/site";
+import { visibleAdminMenu } from "@/lib/site";
 
 export const metadata: Metadata = { title: "ผู้ดูแลระบบ" };
 
 export default async function AdminPage() {
   const ctx = await requireAccountManager();
-  const items = adminMenu.filter((item) => ctx.isAdmin || !item.adminOnly);
+  const items = visibleAdminMenu(ctx);
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">

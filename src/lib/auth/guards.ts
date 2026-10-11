@@ -57,6 +57,13 @@ export async function requireAccountManager(): Promise<AuthContext> {
   return ctx;
 }
 
+/** ข่าวประกาศ ดาวน์โหลด ปฏิทินงานสอบ: ผู้ดูแลระบบและส่วนกลาง */
+export async function requireSiteContentManager(): Promise<AuthContext> {
+  const ctx = await requireWorkspace();
+  if (!ctx.canManageSiteContent) redirect("/app?denied=1");
+  return ctx;
+}
+
 /** หน้าบัญชีของฉัน: ต้องล็อกอิน แต่ไม่ต้องผ่านด่านอื่น */
 export async function requireLogin(): Promise<AuthContext> {
   const ctx = await getAuthContext();
