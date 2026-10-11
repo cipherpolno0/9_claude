@@ -18,14 +18,13 @@ import {
   type DocRow,
   type DocTab,
 } from "@/lib/docs";
-import { fetchDocumentYears, fetchIncoming, fetchViewerCandidates, queryDocuments } from "@/lib/docs-server";
+import { fetchDocsCounts, fetchDocumentYears, fetchIncoming, queryDocuments } from "@/lib/docs-server";
 import { findWorkspaceMenu } from "@/lib/site";
 import { thaiDate, thaiDateTime } from "@/lib/thai";
 import { cn } from "@/lib/utils";
 
-import { IncomingList } from "./doc-forms";
 import { docsQuery, loadDocsScope } from "./scope";
-import { DocBadges, DocsNoAccess, DocsUnitSelect } from "./ui";
+import { DocBadges, DocsNav, DocsNoAccess, DocsUnitSelect } from "./ui";
 
 const menu = findWorkspaceMenu("/app/docs");
 
@@ -140,6 +139,7 @@ export default async function DocsPage({ searchParams }: { searchParams: Promise
     return (
       <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:py-10">
         <h1 className="text-2xl font-bold text-primary sm:text-3xl">{menu.title}</h1>
+        {!ctx.isAdmin ? <DocsNav current="register" counts={await fetchDocsCounts()} showRegister={false} /> : null}
         <DocsNoAccess isAdmin={ctx.isAdmin} />
       </section>
     );
@@ -155,10 +155,10 @@ export default async function DocsPage({ searchParams }: { searchParams: Promise
     filters: ["kind", "urgency", "status"],
     pageSize: 20,
   });
-  const [table, incoming, candidates] = await Promise.all([
+  const [table, incoming, counts] = await Promise.all([
     queryDocuments(unit.id, tab, year, params),
     tab === "receive" ? fetchIncoming(unit.id) : Promise.resolve([]),
-    tab === "receive" && unit.can_edit ? fetchViewerCandidates(unit.id) : Promise.resolve([]),
+    fetchDocsCounts(),
   ]);
   const rows: DataTableRow[] = table.rows.map((r) => ({ id: r.id, cells: cellsOf(tab, r) }));
   const statusOptions =
@@ -203,6 +203,7 @@ export default async function DocsPage({ searchParams }: { searchParams: Promise
         </div>
       </div>
 
+      <DocsNav current="register" counts={counts} />
       <DocsUnitSelect units={units} value={unit.id} action="/app/docs" extra={{ tab }} />
 
       <nav aria-label="ทะเบียน" className="mt-6 flex flex-wrap gap-1 border-b" data-testid="docs-tabs">
@@ -222,7 +223,12 @@ export default async function DocsPage({ searchParams }: { searchParams: Promise
       </nav>
 
       {tab === "receive" && incoming.length > 0 ? (
-        <IncomingList items={incoming} canEdit={unit.can_edit} candidates={candidates} selfId={ctx.user.id} />
+        <p className="mt-4 rounded-xl border border-amber-400 bg-amber-50 p-4 font-semibold text-amber-950" data-testid="incoming">
+          มีหนังสือจากหน่วยในระบบรอลงรับ {incoming.length.toLocaleString("th-TH")} ฉบับ{" "}
+          <Link href={`/app/docs/inbox?unit=${unit.id}`} className="underline underline-offset-4">
+            ไปที่กล่องหนังสือเข้า
+          </Link>
+        </p>
       ) : null}
 
       {tab !== "draft" ? (

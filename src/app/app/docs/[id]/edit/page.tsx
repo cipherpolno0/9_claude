@@ -65,6 +65,8 @@ export default async function EditDocumentPage({ params }: { params: Promise<{ i
                 signerPosition: d.signer_position,
                 note: d.note,
                 viewers: d.viewers.map((v) => v.user_id),
+                replyRequired: d.reply_required,
+                replyDueOn: d.reply_due_on,
               }}
             />
           ) : (

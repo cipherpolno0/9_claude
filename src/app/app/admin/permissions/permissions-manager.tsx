@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { ErrorText, InfoText } from "@/components/form";
 import { PERSONNEL_SCOPES, PERSONNEL_SCOPE_LABEL, scopeRank, type PersonnelScope } from "@/lib/auth/config";
 
-import { setRoleMenu, setRoleScope, type ScopeArea } from "./actions";
+import { setRoleDocsCommand, setRoleMenu, setRoleScope, type ScopeArea } from "./actions";
 
 export type RoleRow = {
   key: string;
@@ -23,6 +23,7 @@ export type RoleRow = {
   inventory_edit: PersonnelScope;
   docs_view: PersonnelScope;
   docs_edit: PersonnelScope;
+  docs_command: boolean;
 };
 
 /** ระบบที่ตั้งขอบเขตดู/แก้ไขได้ (เพิ่มระบบใหม่ที่นี่ คู่กับคอลัมน์ <area>_view / <area>_edit ใน roles) */
@@ -59,6 +60,7 @@ export function PermissionsManager({
       ),
     ),
   );
+  const [commands, setCommands] = useState(() => Object.fromEntries(roles.map((r) => [r.key, r.docs_command])));
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -78,6 +80,20 @@ export function PermissionsManager({
     });
   };
 
+  const toggleCommand = (role: RoleRow, value: boolean) => {
+    setCommands((s) => ({ ...s, [role.key]: value }));
+    startTransition(async () => {
+      setError(null);
+      setFlash(null);
+      const result = await setRoleDocsCommand(role.key, value);
+      if (result.ok) setFlash(`บันทึกแล้ว: ${role.name}`);
+      else {
+        setCommands((s) => ({ ...s, [role.key]: !value }));
+        setError(result.error);
+      }
+    });
+  };
+
   const changeScope = (role: RoleRow, area: ScopeArea, field: "view" | "edit", value: PersonnelScope) => {
     const id = `${role.key}|${area}`;
     const before = scopes[id];
@@ -92,7 +108,10 @@ export function PermissionsManager({
       setError(null);
       setFlash(null);
       const result = await setRoleScope(role.key, area, next.view, next.edit);
-      if (result.ok) setFlash(`บันทึกแล้ว: ${role.name}`);
+      if (result.ok) {
+        setFlash(`บันทึกแล้ว: ${role.name}`);
+        if (area === "docs" && next.view === "none") setCommands((s) => ({ ...s, [role.key]: false }));
+      }
       else {
         setScopes((s) => ({ ...s, [id]: before }));
         setError(result.error);
@@ -200,6 +219,19 @@ export function PermissionsManager({
                       </select>
                     </label>
                   </div>
+                  {area.key === "docs" && !locked ? (
+                    <label className="mt-3 flex min-h-11 items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="size-5 shrink-0 accent-[var(--primary)]"
+                        checked={commands[role.key] ?? false}
+                        disabled={pending || (scope.view === "none" && !commands[role.key])}
+                        onChange={(e) => toggleCommand(role, e.target.checked)}
+                        aria-label={`${role.name}: สั่งการสารบรรณ`}
+                      />
+                      สั่งการและมอบหมายผู้ดำเนินการได้ (ต้องดูสารบรรณได้)
+                    </label>
+                  ) : null}
                   {locked && area.ownOnly ? (
                     <p className="mt-2 text-sm text-muted-foreground">ผู้ดูแลระบบไม่เห็นตัวหนังสือ แต่ตั้งค่าหัวหนังสือได้ทุกหน่วย</p>
                   ) : null}

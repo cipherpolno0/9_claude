@@ -52,10 +52,25 @@ export async function setRoleScope(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("roles")
-    .update({ [`${area}_view`]: view, [`${area}_edit`]: edit })
+    // ปิดการดูสารบรรณ = ปิดสิทธิ์สั่งการด้วย (สั่งการต้องดูสารบรรณได้)
+    .update({ [`${area}_view`]: view, [`${area}_edit`]: edit, ...(area === "docs" && view === "none" ? { docs_command: false } : {}) })
     .eq("key", roleKey)
     .select("key");
   if (error) return { ok: false, error: explainError(error) };
+  if (!data?.length) return { ok: false, error: DENIED };
+  revalidatePath("/", "layout");
+  return { ok: true, message: "บันทึกแล้ว" };
+}
+
+/** สารบรรณ: สั่งการและมอบหมายผู้ดำเนินการได้ (ต้องดูสารบรรณได้ ฐานข้อมูลบังคับด้วย check constraint) */
+export async function setRoleDocsCommand(roleKey: string, value: boolean): Promise<ActionResult> {
+  if (roleKey === "admin") return { ok: false, error: "ผู้ดูแลระบบไม่เห็นตัวหนังสือ จึงสั่งการไม่ได้" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("roles").update({ docs_command: value }).eq("key", roleKey).select("key");
+  if (error) {
+    if (error.code === "23514") return { ok: false, error: "ต้องให้บทบาทนี้ดูสารบรรณได้ก่อน จึงจะสั่งการได้" };
+    return { ok: false, error: explainError(error) };
+  }
   if (!data?.length) return { ok: false, error: DENIED };
   revalidatePath("/", "layout");
   return { ok: true, message: "บันทึกแล้ว" };

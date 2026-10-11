@@ -143,19 +143,137 @@ export type DocDetail = {
   source_document_id: string | null;
   to_units: { id: string; name: string }[];
   viewers: { user_id: string; name: string }[];
-  deliveries: {
-    id: string;
-    unit_name: string;
-    status: "pending" | "received" | "cancelled";
-    received_at: string | null;
-    receive_no: number | null;
-    receive_year: number | null;
-  }[];
   source: { id: string; unit_name: string; doc_no: string } | null;
   letterhead: Letterhead | null;
+  // บทที่ 28: เส้นทางหนังสือ
+  scope: "owner" | "recipient";
+  can_command: boolean;
+  can_view_unit: boolean;
+  reply_required: boolean;
+  reply_due_on: string | null;
+  routes: DocRoute[];
+  source_route: {
+    id: string;
+    reply_required: boolean;
+    reply_due_on: string | null;
+    reply_text: string | null;
+    replied_at: string | null;
+    message: string;
+    from_unit_name: string;
+    to_unit_id: string;
+  } | null;
 };
 
-export const DELIVERY_STATUS_LABEL = { pending: "รอลงรับ", received: "ลงรับแล้ว", cancelled: "ยกเลิก" } as const;
+// ---------------------------------------------------------------
+// บทที่ 28: เส้นทางหนังสือ กล่องหนังสือเข้า งาน
+// ---------------------------------------------------------------
+export type RouteAction = "propose" | "order" | "forward" | "inform" | "act";
+export const ROUTE_ACTION_LABEL: Record<RouteAction, string> = {
+  propose: "เสนอ",
+  order: "สั่งการ",
+  forward: "ส่งถึงหน่วย",
+  inform: "แจ้งเพื่อทราบ",
+  act: "มอบหมายดำเนินการ",
+};
+export type RouteStatus = "pending" | "read" | "received" | "done" | "cancelled";
+export const ROUTE_STATUS_LABEL: Record<RouteStatus, string> = {
+  pending: "ยังไม่เปิดอ่าน",
+  read: "เปิดอ่านแล้ว",
+  received: "ลงรับแล้ว",
+  done: "เสร็จแล้ว",
+  cancelled: "ยกเลิก",
+};
+
+export type DocRoute = {
+  id: string;
+  action: RouteAction;
+  status: RouteStatus;
+  message: string;
+  due_on: string | null;
+  from_user_id: string | null;
+  from_name: string | null;
+  from_unit_name: string;
+  to_user_id: string | null;
+  to_name: string | null;
+  to_unit_id: string | null;
+  parent_route_id: string | null;
+  sent_at: string;
+  read_at: string | null;
+  received_at: string | null;
+  receive_no: number | null;
+  receive_year: number | null;
+  reply_text: string | null;
+  replied_at: string | null;
+  replied_by_name: string | null;
+  done_note: string | null;
+  done_at: string | null;
+  mine: boolean;
+  can_cancel: boolean;
+  file_count: number;
+};
+
+export type InboxItem = {
+  route_id: string;
+  document_id: string;
+  action: RouteAction;
+  kind: DocKind;
+  doc_no: string;
+  doc_date: string | null;
+  subject: string;
+  urgency: DocUrgency;
+  classification: DocClass;
+  from_name: string | null;
+  from_unit_name: string;
+  to_unit_id: string | null;
+  to_unit_name: string | null;
+  message: string;
+  due_on: string | null;
+  sent_at: string;
+  read_at: string | null;
+  status: RouteStatus;
+  can_receive: boolean;
+  reply_required: boolean;
+  replied: boolean;
+  received_document_id: string | null;
+};
+
+export type TaskRow = {
+  route_id: string;
+  document_id: string;
+  doc_no: string;
+  subject: string;
+  kind: DocKind;
+  urgency: DocUrgency;
+  classification: DocClass;
+  org_unit_id: string;
+  org_unit_name: string;
+  from_name: string | null;
+  to_name: string | null;
+  message: string;
+  due_on: string | null;
+  sent_at: string;
+  read_at: string | null;
+  status: RouteStatus;
+  done_at: string | null;
+  done_note: string | null;
+  overdue: boolean;
+  attachment_count: number;
+};
+
+export type RouteCandidate = { user_id: string; name: string; roles: string | null };
+
+/** สรุปการส่งถึงหน่วย (หนังสือเวียนแจ้งงาน): เปิดอ่าน ยังไม่อ่าน ลงรับ ตอบแล้ว */
+export function forwardSummary(routes: DocRoute[]) {
+  const f = routes.filter((r) => r.action === "forward" && r.status !== "cancelled");
+  return {
+    total: f.length,
+    unread: f.filter((r) => r.status === "pending").length,
+    read: f.filter((r) => r.status !== "pending").length,
+    received: f.filter((r) => r.status === "received").length,
+    replied: f.filter((r) => r.reply_text !== null).length,
+  };
+}
+
 
 /** คำขึ้นต้นและคำลงท้ายที่ใช้บ่อย เป็นเพียงตัวช่วยพิมพ์ ผู้ใช้พิมพ์คำอื่นได้ */
 export const SALUTATION_HINTS = ["เรียน", "กราบเรียน", "นมัสการ"];

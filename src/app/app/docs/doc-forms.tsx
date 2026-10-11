@@ -17,23 +17,18 @@ import {
   DOC_KINDS,
   DOC_URGENCIES,
   DOC_URGENCY_LABEL,
-  docClassShort,
   docNoExample,
   needsRecipient,
   SALUTATION_HINTS,
-  type DocClass,
   type DocKind,
-  type IncomingDoc,
 } from "@/lib/docs";
 import { todayIso } from "@/lib/inventory";
 import type { AccessibleOrgUnit } from "@/lib/org-units-server";
-import { thaiDate } from "@/lib/thai";
 
 import {
   cancelDocument,
   discardDraft,
   issueNumber,
-  receiveDelivery,
   registerReceived,
   saveDraft,
   saveLetterhead,
@@ -49,7 +44,7 @@ type Result = { ok: boolean; message?: string; error?: string; id?: string };
 export type Candidate = { user_id: string; name: string };
 
 /** สถานะของฟอร์มเล็ก: ส่ง > แสดงผล > โหลดหน้าใหม่ หรือไปหน้าใหม่ */
-function useRun() {
+export function useRun() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
@@ -69,7 +64,7 @@ function useRun() {
   return { error, setError, flash, pending, run, router };
 }
 
-function Messages({ error, flash }: { error: string | null; flash: string | null }) {
+export function Messages({ error, flash }: { error: string | null; flash: string | null }) {
   return (
     <div aria-live="polite">
       <ErrorText>{error}</ErrorText>
@@ -113,7 +108,7 @@ function SelectField({
 }
 
 /** เลือกผู้เห็นหนังสือลับ (เฉพาะผู้มีสิทธิ์ดูสารบรรณของหน่วย) */
-function ViewerChecks({
+export function ViewerChecks({
   candidates,
   value,
   onChange,
@@ -292,63 +287,151 @@ export type DraftInitial = {
   signerPosition: string;
   note: string;
   viewers: string[];
+  replyRequired: boolean;
+  replyDueOn: string | null;
 };
 
-/** หน่วยในระบบที่ส่งถึง: เลือกทีละหน่วยแล้วกดเพิ่ม */
-function UnitListPicker({
+/** หน่วยใต้สังกัดจากต้นไม้เขตปกครอง: depth 1 = ชั้นถัดไป / all = ทุกชั้น */
+function childrenOf(units: AccessibleOrgUnit[], rootId: string, depth: 1 | "all"): AccessibleOrgUnit[] {
+  const byParent = new Map<string, AccessibleOrgUnit[]>();
+  for (const u of units) {
+    if (!u.parent_id) continue;
+    const list = byParent.get(u.parent_id) ?? [];
+    list.push(u);
+    byParent.set(u.parent_id, list);
+  }
+  const out: AccessibleOrgUnit[] = [];
+  let frontier = [rootId];
+  while (frontier.length) {
+    const next: string[] = [];
+    for (const id of frontier) for (const c of byParent.get(id) ?? []) {
+      out.push(c);
+      next.push(c.id);
+    }
+    if (depth === 1) break;
+    frontier = next;
+  }
+  return out;
+}
+
+const MAX_UNITS = 2000;
+
+/** หน่วยในระบบที่ส่งถึง: เลือกจากต้นไม้เขตปกครอง ทีละหน่วย หรือทั้งชั้นถัดไป / ทุกชั้นใต้สังกัด */
+export function UnitListPicker({
   units,
   value,
   onChange,
   ownUnitId,
+  legend = "ส่งถึงหน่วยในระบบ (หน่วยปลายทางจะได้รายการในกล่องหนังสือเข้า)",
 }: {
   units: AccessibleOrgUnit[];
   value: { id: string; name: string }[];
   onChange: (v: { id: string; name: string }[]) => void;
   ownUnitId: string;
+  legend?: string;
 }) {
   const [picked, setPicked] = useState("");
   const [key, setKey] = useState(0);
+  const [note, setNote] = useState<string | null>(null);
   const central = units.find((u) => u.level === "central");
-  const add = (id: string) => {
-    const u = units.find((x) => x.id === id);
-    if (!u || u.id === ownUnitId || value.some((v) => v.id === id)) return;
-    onChange([...value, { id: u.id, name: u.name }]);
+  const ownChildren = childrenOf(units, ownUnitId, 1);
+  const ownAll = childrenOf(units, ownUnitId, "all");
+  const addMany = (list: AccessibleOrgUnit[]) => {
+    const have = new Set(value.map((v) => v.id));
+    const fresh = list.filter((u) => u.id !== ownUnitId && !have.has(u.id));
+    const room = MAX_UNITS - value.length;
+    onChange([...value, ...fresh.slice(0, room).map((u) => ({ id: u.id, name: u.name }))]);
+    setNote(
+      fresh.length > room
+        ? `เพิ่มได้ ${room} หน่วย (ไม่เกิน ${MAX_UNITS} หน่วยต่อฉบับ)`
+        : fresh.length
+          ? `เพิ่ม ${fresh.length.toLocaleString("th-TH")} หน่วย`
+          : "หน่วยที่เลือกอยู่ในรายการแล้ว",
+    );
     setPicked("");
     setKey((k) => k + 1);
   };
+  const pickedUnit = units.find((u) => u.id === picked);
+  const shown = value.slice(0, 12);
   return (
     <fieldset className="flex flex-col gap-2 rounded-lg border p-3" data-testid="to-units">
-      <legend className="px-1 font-medium">ส่งถึงหน่วยในระบบ (หน่วยปลายทางจะได้รายการรอลงรับ)</legend>
+      <legend className="px-1 font-medium">{legend}</legend>
       {value.length ? (
-        <ul className="flex flex-wrap gap-2">
-          {value.map((u) => (
-            <li key={u.id} className="flex items-center gap-1 rounded-full border bg-secondary px-3 py-1">
-              {u.name}
-              <button
-                type="button"
-                className="ml-1 rounded px-1 text-destructive hover:underline"
-                aria-label={`เอา ${u.name} ออก`}
-                onClick={() => onChange(value.filter((v) => v.id !== u.id))}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <p className="text-sm font-semibold" data-testid="to-units-count">
+            เลือกแล้ว {value.length.toLocaleString("th-TH")} หน่วย
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {shown.map((u) => (
+              <li key={u.id} className="flex items-center gap-1 rounded-full border bg-secondary px-3 py-1">
+                {u.name}
+                <button
+                  type="button"
+                  className="ml-1 rounded px-1 text-destructive hover:underline"
+                  aria-label={`เอา ${u.name} ออก`}
+                  onClick={() => onChange(value.filter((v) => v.id !== u.id))}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+            {value.length > shown.length ? (
+              <li className="px-1 py-1 text-sm text-muted-foreground">และอีก {(value.length - shown.length).toLocaleString("th-TH")} หน่วย</li>
+            ) : null}
+          </ul>
+          <div>
+            <Button type="button" variant="outline" size="sm" onClick={() => onChange([])}>
+              ล้างทั้งหมด
+            </Button>
+          </div>
+        </>
       ) : (
         <p className="text-sm text-muted-foreground">ยังไม่ได้เลือก (ผู้รับภายนอกพิมพ์ที่ช่อง ถึง อย่างเดียว)</p>
       )}
+      {ownChildren.length ? (
+        <div className="flex flex-wrap gap-2" data-testid="own-subunits">
+          <Button type="button" variant="outline" onClick={() => addMany(ownChildren)}>
+            ทุกหน่วยชั้นถัดไปของหน่วยเรา ({ownChildren.length.toLocaleString("th-TH")})
+          </Button>
+          {ownAll.length > ownChildren.length ? (
+            <Button type="button" variant="outline" onClick={() => addMany(ownAll)}>
+              ทุกหน่วยใต้สังกัดทุกชั้น ({ownAll.length.toLocaleString("th-TH")})
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       <OrgUnitPicker key={key} units={units} name="to_unit_pick" autoSelect={false} onChange={setPicked} />
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" disabled={!picked} onClick={() => add(picked)}>
+        <Button type="button" variant="outline" disabled={!pickedUnit} onClick={() => pickedUnit && addMany([pickedUnit])}>
           เพิ่มหน่วยนี้
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!pickedUnit || childrenOf(units, picked, 1).length === 0}
+          onClick={() => addMany(childrenOf(units, picked, 1))}
+        >
+          เพิ่มชั้นถัดไปของหน่วยนี้
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!pickedUnit || childrenOf(units, picked, "all").length === 0}
+          onClick={() => addMany(childrenOf(units, picked, "all"))}
+        >
+          เพิ่มทุกชั้นใต้หน่วยนี้
+        </Button>
         {central && central.id !== ownUnitId ? (
-          <Button type="button" variant="outline" onClick={() => add(central.id)}>
+          <Button type="button" variant="outline" onClick={() => addMany([central])}>
             เพิ่มส่วนกลาง
           </Button>
         ) : null}
       </div>
+      {note ? (
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          {note}
+        </p>
+      ) : null}
     </fieldset>
   );
 }
@@ -370,13 +453,14 @@ export function DraftForm({
   yearBe: number;
   doc?: DraftInitial;
 }) {
-  const { error, flash, pending, run, router } = useRun();
+  const { error, setError, flash, pending, run, router } = useRun();
   const issued = doc?.status === "issued";
   const [kind, setKind] = useState<string>(doc?.kind ?? "external");
   const [urgency, setUrgency] = useState(doc?.urgency ?? "normal");
   const [classification, setClassification] = useState(doc?.classification ?? "normal");
   const [viewers, setViewersState] = useState<string[]>(doc?.viewers ?? []);
   const [toUnits, setToUnits] = useState(doc?.toUnits ?? []);
+  const [replyRequired, setReplyRequired] = useState(doc?.replyRequired ?? false);
   const k = kind as DocKind;
   // หนังสือที่ออกเลขแล้วเปลี่ยนชนิดได้เฉพาะภายในชุดเลขเดียวกัน (ภายนอก <-> ภายใน)
   const kinds: readonly DocKind[] = issued
@@ -391,7 +475,10 @@ export function DraftForm({
       onSubmit={(e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
+        if (replyRequired && f.get("reply_due_on_incomplete")) return setError("กรุณากรอกวันที่ต้องตอบกลับให้ครบ");
         const input = {
+          replyRequired,
+          replyDueOn: fd(f, "reply_due_on"),
           kind,
           toText: fd(f, "to_text"),
           toUnits: toUnits.map((u) => u.id),
@@ -431,6 +518,16 @@ export function DraftForm({
             <Field label="ถึง (ผู้รับ)" name="to_text" id="to-text" defaultValue={doc?.toText} maxLength={300} hint="ต้องกรอกก่อนออกเลข" />
           </div>
           <UnitListPicker units={units} value={toUnits} onChange={setToUnits} ownUnitId={unitId} />
+          <fieldset className="flex flex-col gap-2 rounded-lg border p-3" data-testid="reply-box">
+            <legend className="px-1 font-medium">แบบตอบกลับ</legend>
+            <label className="flex min-h-11 items-center gap-2">
+              <input type="checkbox" className="size-5" checked={replyRequired} onChange={(e) => setReplyRequired(e.target.checked)} />
+              ต้องการคำตอบจากหน่วยที่ส่งถึง (ตอบในระบบ เป็นข้อความและไฟล์แนบ)
+            </label>
+            {replyRequired ? (
+              <ThaiDateInput label="ตอบภายในวันที่" name="reply_due_on" defaultValue={doc?.replyDueOn ?? undefined} hint="เว้นว่าง = ไม่กำหนดวัน" className="sm:max-w-md" />
+            ) : null}
+          </fieldset>
         </>
       ) : null}
       <div className="flex flex-col gap-1">
@@ -575,69 +672,6 @@ export function ViewersForm({ id, candidates, current, selfId }: { id: string; c
         </Button>
       </div>
     </div>
-  );
-}
-
-/** หนังสือจากหน่วยอื่นในระบบที่รอลงรับ */
-export function IncomingList({
-  items,
-  canEdit,
-  candidates,
-  selfId,
-}: {
-  items: IncomingDoc[];
-  canEdit: boolean;
-  candidates: Candidate[];
-  selfId: string;
-}) {
-  return (
-    <div className="mt-4 rounded-xl border border-amber-400 bg-amber-50 p-4 text-amber-950" data-testid="incoming">
-      <h2 className="font-bold">หนังสือจากหน่วยในระบบ รอลงรับ {items.length.toLocaleString("th-TH")} ฉบับ</h2>
-      <ul className="mt-2 flex flex-col gap-3">
-        {items.map((d) => (
-          <IncomingItem key={d.delivery_id} item={d} canEdit={canEdit} candidates={candidates} selfId={selfId} />
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function IncomingItem({ item, canEdit, candidates, selfId }: { item: IncomingDoc; canEdit: boolean; candidates: Candidate[]; selfId: string }) {
-  const { error, flash, pending, run, router } = useRun();
-  const [viewers, setViewersState] = useState<string[]>([]);
-  const [note, setNote] = useState("");
-  const secret = item.classification !== "normal";
-  return (
-    <li className="rounded-lg border border-amber-300 bg-white p-3" data-testid="incoming-item">
-      <p className="font-semibold">
-        ที่ {item.doc_no} ลงวันที่ {thaiDate(item.doc_date, "short")}
-        {item.urgency !== "normal" ? <span className="ml-2 font-bold text-destructive">{DOC_URGENCY_LABEL[item.urgency]}</span> : null}
-        {secret ? <span className="ml-2 font-bold text-destructive">{docClassShort(item.classification as DocClass)}</span> : null}
-      </p>
-      <p>
-        จาก {item.from_unit_name} · {DOC_KIND_LABEL[item.kind]}
-      </p>
-      <p>{item.subject ? `เรื่อง ${item.subject}` : "เรื่อง: (หนังสือลับ เห็นได้หลังผู้ลงทะเบียนลงรับและระบุชื่อ)"}</p>
-      {canEdit ? (
-        <div className="mt-2 flex flex-col gap-2">
-          {secret ? <ViewerChecks candidates={candidates} value={viewers} onChange={setViewersState} selfId={selfId} /> : null}
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={`in-${item.delivery_id}-note`}>การปฏิบัติ / หมายเหตุ</Label>
-            <Input id={`in-${item.delivery_id}-note`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
-          </div>
-          <Messages error={error} flash={flash} />
-          <div>
-            <Button
-              type="button"
-              disabled={pending}
-              onClick={() => run(() => receiveDelivery(item.delivery_id, viewers, note), (r) => router.push(`/app/docs/${r.id}`))}
-            >
-              ลงรับ
-            </Button>
-          </div>
-        </div>
-      ) : null}
-    </li>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireMenu } from "@/lib/auth/guards";
+import { requireMenu, requireWorkspace } from "@/lib/auth/guards";
 import { isUuid } from "@/lib/budget";
 import { isDocClass, isDocKind, isDocUrgency } from "@/lib/docs";
 import { explainError, type ActionResult } from "@/lib/errors";
@@ -109,6 +109,8 @@ export type DraftInput = {
   signerPosition: string;
   note: string;
   viewers: string[];
+  replyRequired: boolean;
+  replyDueOn: string;
 };
 
 /** บันทึกร่างหนังสือส่ง (id ว่าง = ร่างใหม่ของหน่วย unitId) แก้ได้จนกว่าจะส่ง */
@@ -137,6 +139,8 @@ export async function saveDraft(id: string | null, unitId: string | null, input:
     signer_position: text(input.signerPosition, 300),
     note: text(input.note, 1000),
     viewers: input.classification === "normal" ? [] : uuids(input.viewers),
+    reply_required: input.replyRequired === true,
+    reply_due_on: input.replyRequired ? isoDate(input.replyDueOn) : null,
   };
   return rpc("save_document_draft", { p_id: id, p_unit: id ? null : unitId, p: payload }, "บันทึกร่างแล้ว");
 }
@@ -183,12 +187,6 @@ export async function setViewers(id: string, viewers: string[]): Promise<Result>
   return rpc("set_document_viewers", { p_id: id, p_viewers: uuids(viewers) }, "บันทึกรายชื่อผู้เห็นหนังสือแล้ว");
 }
 
-export async function receiveDelivery(deliveryId: string, viewers: string[], note: string): Promise<Result> {
-  const denied = await guardEdit();
-  if (denied) return { ok: false, error: denied };
-  if (!isUuid(deliveryId)) return { ok: false, error: "ไม่พบหนังสือที่รอลงรับ" };
-  return rpc("receive_document_delivery", { p_delivery: deliveryId, p_viewers: uuids(viewers), p_note: text(note, 1000) }, "ลงรับแล้ว");
-}
 
 export type LetterheadInput = { codePrefix: string; agencyName: string; address: string };
 
@@ -211,4 +209,80 @@ export async function saveLetterhead(unitId: string, input: LetterheadInput): Pr
   if (!data?.length) return { ok: false, error: DENIED };
   revalidatePath(MENU, "layout");
   return { ok: true, message: "บันทึกหัวหนังสือแล้ว" };
+}
+
+// ---------------------------------------------------------------
+// บทที่ 28: เส้นทางหนังสือ (ฐานข้อมูลตรวจสิทธิ์ทุกขั้น: ผู้เห็นหนังสือ ผู้สั่งการ ผู้รับเส้นทาง ผู้ลงทะเบียนของหน่วย)
+// ---------------------------------------------------------------
+async function routeRpc(fn: string, args: Record<string, unknown>, message: string): Promise<Result> {
+  await requireWorkspace();
+  return rpc(fn, args, message);
+}
+
+export async function receiveRoute(routeId: string, viewers: string[], note: string): Promise<Result> {
+  if (!isUuid(routeId)) return { ok: false, error: "ไม่พบหนังสือที่รอลงรับ" };
+  return routeRpc("receive_document_route", { p_route: routeId, p_viewers: uuids(viewers), p_note: text(note, 1000) }, "ลงรับแล้ว");
+}
+
+export async function proposeDocument(docId: string, toUser: string, message: string): Promise<Result> {
+  if (!isUuid(docId)) return { ok: false, error: "ไม่พบหนังสือ" };
+  if (!isUuid(toUser)) return { ok: false, error: "กรุณาเลือกผู้ที่จะเสนอถึง" };
+  const msg = text(message, 2000);
+  if (!msg) return { ok: false, error: "กรุณากรอกข้อความเสนอ" };
+  return routeRpc("propose_document", { p_doc: docId, p_to_user: toUser, p_message: msg }, "เสนอแล้ว");
+}
+
+export type OrderInput = { message: string; assignees: string[]; dueOn: string; inform: string[]; parentId: string | null };
+
+export async function orderDocument(docId: string, input: OrderInput): Promise<Result> {
+  if (!isUuid(docId)) return { ok: false, error: "ไม่พบหนังสือ" };
+  const msg = text(input.message, 2000);
+  if (!msg) return { ok: false, error: "กรุณากรอกคำสั่งการ" };
+  const assignees = uuids(input.assignees);
+  const due = input.dueOn ? isoDate(input.dueOn) : null;
+  if (input.dueOn && !due) return { ok: false, error: "กรุณากรอกกำหนดเสร็จให้ครบ" };
+  return routeRpc(
+    "order_document",
+    {
+      p_doc: docId,
+      p_message: msg,
+      p_assignees: assignees,
+      p_due: due,
+      p_inform: uuids(input.inform),
+      p_parent: isUuid(input.parentId) ? input.parentId : null,
+    },
+    assignees.length ? `สั่งการแล้ว มอบหมาย ${assignees.length} คน` : "สั่งการแล้ว",
+  );
+}
+
+export async function completeRoute(routeId: string, note: string): Promise<Result> {
+  if (!isUuid(routeId)) return { ok: false, error: "ไม่พบงาน" };
+  return routeRpc("complete_route", { p_route: routeId, p_note: text(note, 2000) }, "บันทึกแล้ว");
+}
+
+export async function cancelRoute(routeId: string): Promise<Result> {
+  if (!isUuid(routeId)) return { ok: false, error: "ไม่พบรายการ" };
+  return routeRpc("cancel_route", { p_route: routeId }, "ยกเลิกแล้ว");
+}
+
+export async function forwardDocument(docId: string, units: string[], message: string): Promise<Result> {
+  if (!isUuid(docId)) return { ok: false, error: "ไม่พบหนังสือ" };
+  const list = uuids(units);
+  if (!list.length) return { ok: false, error: "กรุณาเลือกหน่วยที่ส่งต่อถึงอย่างน้อย 1 หน่วย" };
+  const r = await routeRpc("forward_document", { p_doc: docId, p_units: list, p_message: text(message, 2000) }, "ส่งต่อแล้ว");
+  return r.ok ? { ...r, message: `ส่งต่อแล้ว ${Number(r.data ?? 0)} หน่วย` } : r;
+}
+
+export async function replyRoute(routeId: string, reply: string): Promise<Result> {
+  if (!isUuid(routeId)) return { ok: false, error: "ไม่พบหนังสือ" };
+  const body = text(reply, 4000);
+  if (!body) return { ok: false, error: "กรุณากรอกคำตอบ" };
+  return routeRpc("reply_route", { p_route: routeId, p_text: body }, "ส่งคำตอบแล้ว");
+}
+
+export async function remindRoutes(docId: string, kind: "unread" | "unreplied"): Promise<Result> {
+  if (!isUuid(docId)) return { ok: false, error: "ไม่พบหนังสือ" };
+  const r = await routeRpc("remind_document_routes", { p_doc: docId, p_kind: kind }, "");
+  const n = Number(r.ok ? r.data : 0);
+  return r.ok ? { ...r, message: n > 0 ? `ส่งเตือนแล้ว ${n} หน่วย` : "ไม่มีหน่วยที่ต้องเตือน (เตือนหน่วยเดิมได้ชั่วโมงละครั้ง)" } : r;
 }
