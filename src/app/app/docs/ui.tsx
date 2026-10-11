@@ -73,13 +73,13 @@ export function DocsUnitSelect({ units, value, action, extra = {} }: { units: Do
   );
 }
 
-/** เมนูย่อยของสารบรรณ: ทะเบียน / กล่องหนังสือเข้า / งานของฉัน (ตัวเลข = รายการค้าง) */
+/** เมนูย่อยของสารบรรณ: ทะเบียน / กล่องหนังสือเข้า / งานของฉัน / ค้นหา / รายงาน (ตัวเลข = รายการค้าง) */
 export function DocsNav({
   current,
   counts,
   showRegister = true,
 }: {
-  current: "register" | "inbox" | "tasks";
+  current: "register" | "inbox" | "tasks" | "search" | "reports";
   counts: { inbox: number; tasks: number };
   showRegister?: boolean;
 }) {
@@ -87,6 +87,12 @@ export function DocsNav({
     ...(showRegister ? [{ key: "register", href: "/app/docs", label: "ทะเบียนหนังสือ", n: 0 }] : []),
     { key: "inbox", href: "/app/docs/inbox", label: "กล่องหนังสือเข้า", n: counts.inbox },
     { key: "tasks", href: "/app/docs/tasks", label: "งานของฉัน", n: counts.tasks },
+    ...(showRegister
+      ? [
+          { key: "search", href: "/app/docs/search", label: "ค้นหาหนังสือ", n: 0 },
+          { key: "reports", href: "/app/docs/reports", label: "รายงาน", n: 0 },
+        ]
+      : []),
   ];
   return (
     <nav aria-label="สารบรรณ" className="mt-4 flex flex-wrap gap-2" data-testid="docs-nav">

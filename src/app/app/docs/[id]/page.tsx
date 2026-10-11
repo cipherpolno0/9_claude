@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Printer } from "lucide-react";
+import { Printer, Route } from "lucide-react";
 
 import { Attachments } from "@/components/attachments";
 import { Button } from "@/components/ui/button";
@@ -27,9 +27,11 @@ import {
   markDocumentRead,
 } from "@/lib/docs-server";
 import { fetchAllActiveUnits } from "@/lib/org-units-server";
+import { REQUEST_STATUS_LABEL, type RequestStatus } from "@/lib/requests/labels";
 import { thaiDate, thaiDateTime } from "@/lib/thai";
 import { cn } from "@/lib/utils";
 
+import { CloseForm, LinkRequestForm, ReopenForm, UnlinkButton } from "../archive-forms";
 import { CancelForm, DiscardButton, IssueForm, SendButton, ViewersForm } from "../doc-forms";
 import {
   CancelRouteButton,
@@ -132,7 +134,7 @@ function ForwardReport({ d, userId }: { d: DocDetail; userId: string }) {
           </div>
         ))}
       </div>
-      {d.can_edit && d.status !== "cancelled" ? (
+      {d.can_edit && d.status !== "cancelled" && !d.closed_at ? (
         <div className="mt-3">
           <RemindButtons docId={d.id} unread={s.unread} unreplied={d.reply_required ? s.total - s.replied : null} />
         </div>
@@ -204,7 +206,9 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
   const send = d.direction === "send";
   const tab = send ? (d.status === "draft" ? "draft" : "send") : "receive";
   const secret = d.classification !== "normal";
-  const live = d.status !== "cancelled";
+  const closed = !!d.closed_at;
+  // ปิดเรื่องแล้ว = อยู่ในคลังเก็บ: ทำรายการใดไม่ได้จนกว่าจะเปิดเรื่องใหม่
+  const live = d.status !== "cancelled" && !closed;
   const canEdit = d.can_edit && live;
   const forwards = d.routes.filter((r) => r.action === "forward");
   const internal = d.routes.filter((r) => r.action !== "forward");
@@ -226,13 +230,25 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
     canForward ? fetchAllActiveUnits() : Promise.resolve([]),
   ]);
   const otherCommanders = commanders.filter((c) => c.user_id !== ctx.user.id);
-  const backHref = owner && d.can_view_unit ? `/app/docs?${docsQuery(d.org_unit_id, { tab, year: d.number_year })}` : "/app/docs/inbox";
+  const backHref = owner && d.can_view_unit
+    ? `/app/docs?${docsQuery(d.org_unit_id, closed ? { tab: "archive" } : { tab, year: d.number_year })}`
+    : "/app/docs/inbox";
+  const canClose = owner && canEdit && (d.status === "sent" || d.status === "received");
+  const showRequests = owner && (d.requests.length > 0 || d.requests_hidden > 0 || (d.can_view_unit && d.status !== "draft" && d.status !== "cancelled"));
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">
       <p>
         <Link href={backHref} className="text-primary underline underline-offset-4">
-          ← {owner && d.can_view_unit ? (send ? (d.status === "draft" ? "ร่างหนังสือ" : "ทะเบียนหนังสือส่ง") : "ทะเบียนหนังสือรับ") : "กล่องหนังสือเข้า"}
+          ← {owner && d.can_view_unit
+            ? closed
+              ? "คลังเก็บ"
+              : send
+                ? d.status === "draft"
+                  ? "ร่างหนังสือ"
+                  : "ทะเบียนหนังสือส่ง"
+                : "ทะเบียนหนังสือรับ"
+            : "กล่องหนังสือเข้า"}
         </Link>
       </p>
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
@@ -245,6 +261,7 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
             {owner ? (
               <span className={cn("font-semibold", d.status === "cancelled" && "text-destructive")} data-testid="doc-status">
                 {DOC_STATUS_LABEL[d.status]}
+                {closed ? " · ปิดเรื่องแล้ว" : ""}
               </span>
             ) : null}
             <span className="text-muted-foreground">
@@ -254,6 +271,14 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {d.status !== "draft" ? (
+            <Button asChild variant="outline">
+              <Link href={`/app/docs/${d.id}/track`} prefetch={false} data-testid="track-link">
+                <Route aria-hidden />
+                ติดตามหนังสือ
+              </Link>
+            </Button>
+          ) : null}
           {editable ? (
             <Button asChild variant="outline">
               <Link href={`/app/docs/${d.id}/edit`}>แก้ไข</Link>
@@ -276,6 +301,28 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
           {owner ? ` โดย ${d.cancelled_by_name ?? "-"} เหตุผล: ${d.cancel_reason}` : ""}
           {send && owner ? " (เลขนี้ไม่ถูกนำกลับมาใช้)" : ""}
         </p>
+      ) : null}
+
+      {closed && owner ? (
+        <div className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-950" data-testid="closed-info">
+          <p className="font-semibold">
+            ปิดเรื่องแล้วเมื่อ {thaiDateTime(d.closed_at)} โดย {d.closed_by_name ?? "-"} (อยู่ในคลังเก็บ)
+          </p>
+          {d.close_note ? <p>บันทึก: {d.close_note}</p> : null}
+          <p data-testid="retention-info">
+            {d.retention_years
+              ? `อายุการเก็บ ${d.retention_years} ปี นับจากวันปิดเรื่อง ครบวันที่ ${thaiDate(d.retain_until)}`
+              : "ชนิดหนังสือนี้ยังไม่กำหนดอายุการเก็บ (ผู้ดูแลระบบตั้งได้ที่ อายุการเก็บหนังสือ)"}
+          </p>
+          {d.can_edit ? (
+            <details className="mt-3" data-testid="open-reopen">
+              <summary className="cursor-pointer font-semibold text-primary">เปิดเรื่องใหม่</summary>
+              <div className="mt-2 rounded-lg bg-card p-3 text-foreground">
+                <ReopenForm id={d.id} />
+              </div>
+            </details>
+          ) : null}
+        </div>
       ) : null}
 
       {myForward ? (
@@ -432,6 +479,52 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
         <Panel title={d.direction === "send" ? "การส่งถึงหน่วยในระบบ" : "การส่งต่อถึงหน่วยอื่น"} testId="deliveries">
           <ForwardReport d={d} userId={ctx.user.id} />
         </Panel>
+      ) : null}
+
+      {showRequests ? (
+        <Panel title="คำขอที่เกี่ยวข้อง" testId="doc-requests">
+          {d.requests.length ? (
+            <ul className="flex flex-col gap-2">
+              {d.requests.map((r) => (
+                <li key={r.link_id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+                  <span className="min-w-0">
+                    <Link href={`/app/approvals/${r.request_id}`} prefetch={false} className="font-semibold text-primary underline underline-offset-4">
+                      {r.request_no}
+                    </Link>{" "}
+                    {r.title}
+                    <span className="block text-sm text-muted-foreground">
+                      {r.type_name} · {REQUEST_STATUS_LABEL[r.status as RequestStatus] ?? r.status}
+                      {r.source === "auto" ? " · ระบบสร้างร่างแจ้งผลจากคำขอนี้" : ""}
+                    </span>
+                  </span>
+                  {r.can_remove && r.source === "manual" ? <UnlinkButton linkId={r.link_id} /> : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">ยังไม่มีคำขอที่อ้างอิงหนังสือนี้</p>
+          )}
+          {d.requests_hidden > 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">มีคำขออีก {d.requests_hidden} รายการที่ท่านไม่มีสิทธิ์เห็น</p>
+          ) : null}
+          {d.can_view_unit && live && d.status !== "draft" ? (
+            <details className="mt-3" data-testid="open-link-request">
+              <summary className="cursor-pointer font-semibold text-primary">อ้างอิงคำขอ</summary>
+              <div className="mt-2">
+                <LinkRequestForm docId={d.id} />
+              </div>
+            </details>
+          ) : null}
+        </Panel>
+      ) : null}
+
+      {canClose ? (
+        <details className="mt-6 rounded-xl border bg-card p-5" data-testid="open-close">
+          <summary className="cursor-pointer text-lg font-bold text-primary">ปิดเรื่อง (ย้ายเข้าคลังเก็บ)</summary>
+          <div className="mt-3">
+            <CloseForm id={d.id} openWork={d.open_work} />
+          </div>
+        </details>
       ) : null}
 
       {canEdit && owner ? (

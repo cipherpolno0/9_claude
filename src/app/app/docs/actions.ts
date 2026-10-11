@@ -286,3 +286,79 @@ export async function remindRoutes(docId: string, kind: "unread" | "unreplied"):
   const n = Number(r.ok ? r.data : 0);
   return r.ok ? { ...r, message: n > 0 ? `ส่งเตือนแล้ว ${n} หน่วย` : "ไม่มีหน่วยที่ต้องเตือน (เตือนหน่วยเดิมได้ชั่วโมงละครั้ง)" } : r;
 }
+
+// ---------------------------------------------------------------
+// บทที่ 29: ปิดเรื่อง เปิดเรื่องใหม่ อ้างอิงคำขอ อายุการเก็บ
+// ---------------------------------------------------------------
+export async function closeDocument(id: string, note: string): Promise<Result> {
+  await requireWorkspace();
+  if (!isUuid(id)) return { ok: false, error: "ไม่พบหนังสือ" };
+  return rpc("close_document", { p_id: id, p_note: text(note, 1000) }, "ปิดเรื่องแล้ว หนังสือย้ายเข้าคลังเก็บ");
+}
+
+export async function reopenDocument(id: string, reason: string): Promise<Result> {
+  await requireWorkspace();
+  if (!isUuid(id)) return { ok: false, error: "ไม่พบหนังสือ" };
+  const why = text(reason, 1000);
+  if (why.length < 3) return { ok: false, error: "กรุณาระบุเหตุผลที่เปิดเรื่องใหม่ (อย่างน้อย 3 ตัวอักษร)" };
+  return rpc("reopen_document", { p_id: id, p_reason: why }, "เปิดเรื่องใหม่แล้ว");
+}
+
+async function linkRpc(fn: string, args: Record<string, unknown>, message: string): Promise<Result> {
+  await requireWorkspace();
+  const r = await rpc(fn, args, message);
+  if (r.ok) revalidatePath("/app/approvals", "layout");
+  return r;
+}
+
+/** อ้างอิงหนังสือจากหน้าคำขอ (เลือกจากผลค้นหา) */
+export async function linkDocumentToRequest(requestId: string, docId: string): Promise<Result> {
+  if (!isUuid(requestId) || !isUuid(docId)) return { ok: false, error: "กรุณาเลือกหนังสือ" };
+  return linkRpc("link_document_request", { p_doc: docId, p_request: requestId }, "อ้างอิงหนังสือแล้ว");
+}
+
+/** อ้างอิงคำขอจากหน้าหนังสือ (กรอกเลขที่คำขอ เช่น ESTAB-2569-0001) */
+export async function linkRequestByNo(docId: string, requestNo: string): Promise<Result> {
+  await requireWorkspace();
+  if (!isUuid(docId)) return { ok: false, error: "ไม่พบหนังสือ" };
+  const no = text(requestNo, 40).toUpperCase().replace(/\s+/g, "");
+  if (!/^[A-Z]+-\d{4}-\d{1,6}$/.test(no)) return { ok: false, error: "กรุณากรอกเลขที่คำขอ เช่น ESTAB-2569-0001" };
+  const supabase = await createClient();
+  const { data } = await supabase.from("requests").select("id").eq("request_no", no).maybeSingle();
+  if (!data) return { ok: false, error: `ไม่พบคำขอเลขที่ ${no} หรือท่านไม่มีสิทธิ์เห็นคำขอนี้` };
+  return linkRpc("link_document_request", { p_doc: docId, p_request: (data as { id: string }).id }, `อ้างอิงคำขอ ${no} แล้ว`);
+}
+
+export async function unlinkRequest(linkId: string): Promise<Result> {
+  if (!isUuid(linkId)) return { ok: false, error: "ไม่พบการอ้างอิง" };
+  return linkRpc("unlink_document_request", { p_link: linkId }, "ยกเลิกการอ้างอิงแล้ว");
+}
+
+/** ค้นหนังสือที่อ้างอิงได้ (ช่องค้นหาบนหน้าคำขอ) */
+export async function searchLinkCandidates(requestId: string, q: string) {
+  await requireWorkspace();
+  if (!isUuid(requestId)) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("doc_link_candidates", { p_request: requestId, p_q: text(q, 100) });
+  if (error) return [];
+  return (data as import("@/lib/docs").LinkCandidate[] | null) ?? [];
+}
+
+/** อายุการเก็บตามชนิดหนังสือ (ผู้ดูแลระบบ RLS ตรวจซ้ำ) ว่าง = ไม่กำหนด */
+export async function saveRetention(kind: string, years: string, note: string): Promise<Result> {
+  const ctx = await requireMenu(MENU);
+  if (!ctx.isAdmin) return { ok: false, error: "เฉพาะผู้ดูแลระบบ" };
+  if (!isDocKind(kind)) return { ok: false, error: "ชนิดหนังสือไม่ถูกต้อง" };
+  const raw = text(years, 5);
+  const n = raw === "" ? null : Number(raw);
+  if (n !== null && (!Number.isInteger(n) || n < 1 || n > 100)) return { ok: false, error: "อายุการเก็บต้องเป็นจำนวนปีเต็ม 1-100 (เว้นว่าง = ไม่กำหนด)" };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("doc_retention_rules")
+    .upsert({ kind, years: n, note: text(note, 500), updated_by: ctx.user.id }, { onConflict: "kind" })
+    .select("kind");
+  if (error) return { ok: false, error: explainError(error) };
+  if (!data?.length) return { ok: false, error: "เฉพาะผู้ดูแลระบบ" };
+  revalidatePath(MENU, "layout");
+  return { ok: true, message: "บันทึกอายุการเก็บแล้ว" };
+}

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Paperclip, Plus, Settings } from "lucide-react";
+import { Archive, Paperclip, Plus, Settings } from "lucide-react";
 
 import { DataTable, type DataTableColumn, type DataTableRow } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,15 @@ import {
   DOC_TABS,
   DOC_URGENCIES,
   DOC_URGENCY_LABEL,
+  docRefLabel,
   isDocTab,
+  type ArchiveRow,
   type DocRow,
   type DocTab,
 } from "@/lib/docs";
-import { fetchDocsCounts, fetchDocumentYears, fetchIncoming, queryDocuments } from "@/lib/docs-server";
+import { fetchDocsCounts, fetchDocumentYears, fetchIncoming, queryArchive, queryDocuments } from "@/lib/docs-server";
 import { findWorkspaceMenu } from "@/lib/site";
+import { bkkDate } from "@/lib/docs-track";
 import { thaiDate, thaiDateTime } from "@/lib/thai";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +60,47 @@ const COLUMNS: Record<DocTab, DataTableColumn[]> = {
     { key: "to", header: "ถึง" },
     { key: "updated", header: "แก้ไขล่าสุด" },
   ],
+  archive: [
+    { key: "no", header: "ทะเบียน" },
+    { key: "subject", header: "เรื่อง", sortable: true },
+    { key: "kind", header: "ชนิด" },
+    { key: "closed", header: "ปิดเรื่องเมื่อ", sortable: true },
+    { key: "until", header: "ครบอายุการเก็บ", sortable: true },
+  ],
 };
+
+/** แถวของแท็บคลังเก็บ */
+function archiveCells(r: ArchiveRow, today: string): React.ReactNode[] {
+  const expired = !!r.retain_until && r.retain_until <= today;
+  return [
+    <span key="no" className="whitespace-nowrap">
+      <span className="block text-sm text-muted-foreground">{r.direction === "receive" ? "หนังสือรับ" : "หนังสือส่ง"}</span>
+      {docRefLabel(r)}
+    </span>,
+    r.masked ? (
+      <div key="subject" className="text-muted-foreground" data-testid="masked-row">
+        <DocBadges urgency={r.urgency} classification={r.classification} />
+        (หนังสือลับ เห็นเฉพาะผู้ที่ระบุชื่อ)
+      </div>
+    ) : (
+      <div key="subject">
+        <DocBadges urgency={r.urgency} classification={r.classification} />
+        <Link href={`/app/docs/${r.id}`} prefetch={false} className="text-primary underline underline-offset-4">
+          {r.subject}
+        </Link>
+        {r.close_note ? <span className="block text-sm text-muted-foreground">{r.close_note}</span> : null}
+      </div>
+    ),
+    DOC_KIND_LABEL[r.kind],
+    <span key="closed" className="whitespace-nowrap">
+      {thaiDate(r.closed_at, "short")}
+      {r.closed_by_name ? <span className="block text-sm text-muted-foreground">{r.closed_by_name}</span> : null}
+    </span>,
+    <span key="until" className={cn("whitespace-nowrap", expired && "font-semibold text-destructive")} data-testid="retain-until">
+      {r.retain_until ? `${thaiDate(r.retain_until, "short")}${expired ? " (ครบแล้ว)" : ""}` : "ไม่กำหนด"}
+    </span>,
+  ];
+}
 
 function SubjectCell({ r }: { r: DocRow }) {
   if (r.masked) {
@@ -129,7 +172,7 @@ function cellsOf(tab: DocTab, r: DocRow): React.ReactNode[] {
   return [<SubjectCell key="subject" r={r} />, DOC_KIND_LABEL[r.kind], r.masked ? "-" : r.to_text || "-", thaiDateTime(r.updated_at)];
 }
 
-/** สารบรรณ: ทะเบียนหนังสือรับ หนังสือส่ง และร่าง ของหน่วย */
+/** สารบรรณ: ทะเบียนหนังสือรับ หนังสือส่ง ร่าง และคลังเก็บ ของหน่วย */
 export default async function DocsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const search = await searchParams;
   const { ctx, units, unit } = await loadDocsScope(search);
@@ -145,22 +188,34 @@ export default async function DocsPage({ searchParams }: { searchParams: Promise
     );
   }
 
-  const years = await fetchDocumentYears(unit.id);
+  const archive = tab === "archive";
+  const years = archive ? [] : await fetchDocumentYears(unit.id);
   const wantYear = Number(one(search.year));
   const year = years.includes(wantYear) ? wantYear : currentYearBe();
-  const params = parseTableParams(search, {
-    sortable: ["no", "date", "subject"],
-    defaultSort: "no",
-    defaultDir: "desc",
-    filters: ["kind", "urgency", "status"],
-    pageSize: 20,
-  });
+  const params = archive
+    ? parseTableParams(search, {
+        sortable: ["subject", "closed", "until"],
+        defaultSort: "closed",
+        defaultDir: "desc",
+        filters: ["kind", "dir", "expired"],
+        pageSize: 20,
+      })
+    : parseTableParams(search, {
+        sortable: ["no", "date", "subject"],
+        defaultSort: "no",
+        defaultDir: "desc",
+        filters: ["kind", "urgency", "status"],
+        pageSize: 20,
+      });
+  const today = bkkDate(new Date());
   const [table, incoming, counts] = await Promise.all([
-    queryDocuments(unit.id, tab, year, params),
+    archive
+      ? queryArchive(unit.id, params).then((t) => ({ total: t.total, rows: t.rows.map((r) => ({ id: r.id, cells: archiveCells(r, today) })) }))
+      : queryDocuments(unit.id, tab, year, params).then((t) => ({ total: t.total, rows: t.rows.map((r) => ({ id: r.id, cells: cellsOf(tab, r) })) })),
     tab === "receive" ? fetchIncoming(unit.id) : Promise.resolve([]),
     fetchDocsCounts(),
   ]);
-  const rows: DataTableRow[] = table.rows.map((r) => ({ id: r.id, cells: cellsOf(tab, r) }));
+  const rows: DataTableRow[] = table.rows;
   const statusOptions =
     tab === "receive"
       ? (["received", "cancelled"] as const)
@@ -231,7 +286,16 @@ export default async function DocsPage({ searchParams }: { searchParams: Promise
         </p>
       ) : null}
 
-      {tab !== "draft" ? (
+      {archive ? (
+        <p className="mt-4 flex flex-wrap items-center gap-2 text-muted-foreground" data-testid="archive-note">
+          <Archive className="size-5" aria-hidden />
+          หนังสือที่ปิดเรื่องแล้วทุกปี วันครบอายุการเก็บนับจากวันปิดเรื่องตาม
+          <Link href="/app/docs/retention" className="text-primary underline underline-offset-4">
+            อายุการเก็บหนังสือ
+          </Link>
+          {ctx.isAdmin ? "(ผู้ดูแลระบบตั้งได้)" : ""}
+        </p>
+      ) : tab !== "draft" ? (
         <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="year-nav">
           <span className="font-semibold">ปี พ.ศ.</span>
           {years.map((y) => (
@@ -258,21 +322,31 @@ export default async function DocsPage({ searchParams }: { searchParams: Promise
           dir={params.dir}
           q={params.q}
           searchPlaceholder="ค้นหาเลขที่ เรื่อง จาก ถึง"
-          filters={[
-            { name: "kind", label: "ชนิด", options: DOC_KINDS.map((k) => ({ value: k, label: DOC_KIND_LABEL[k] })) },
-            { name: "urgency", label: "ชั้นความเร็ว", options: DOC_URGENCIES.map((u) => ({ value: u, label: DOC_URGENCY_LABEL[u] })) },
-            ...(statusOptions.length
-              ? [{ name: "status", label: "สถานะ", options: statusOptions.map((s) => ({ value: s, label: DOC_STATUS_LABEL[s] })) }]
-              : []),
-          ]}
+          filters={
+            archive
+              ? [
+                  { name: "kind", label: "ชนิด", options: DOC_KINDS.map((k) => ({ value: k, label: DOC_KIND_LABEL[k] })) },
+                  { name: "dir", label: "ทะเบียน", options: [{ value: "receive", label: "หนังสือรับ" }, { value: "send", label: "หนังสือส่ง" }] },
+                  { name: "expired", label: "อายุการเก็บ", options: [{ value: "1", label: "ครบอายุการเก็บแล้ว" }] },
+                ]
+              : [
+                  { name: "kind", label: "ชนิด", options: DOC_KINDS.map((k) => ({ value: k, label: DOC_KIND_LABEL[k] })) },
+                  { name: "urgency", label: "ชั้นความเร็ว", options: DOC_URGENCIES.map((u) => ({ value: u, label: DOC_URGENCY_LABEL[u] })) },
+                  ...(statusOptions.length
+                    ? [{ name: "status", label: "สถานะ", options: statusOptions.map((s) => ({ value: s, label: DOC_STATUS_LABEL[s] })) }]
+                    : []),
+                ]
+          }
           filterValues={params.filters}
-          exportHref={tab === "draft" ? undefined : "/app/docs/export"}
+          exportHref={tab === "draft" || archive ? undefined : "/app/docs/export"}
           emptyText={
             tab === "receive"
               ? `ยังไม่มีหนังสือรับในปี ${year}`
               : tab === "send"
                 ? `ยังไม่มีหนังสือส่งในปี ${year}`
-                : "ไม่มีร่างหนังสือ"
+                : archive
+                  ? "ยังไม่มีหนังสือที่ปิดเรื่อง"
+                  : "ไม่มีร่างหนังสือ"
           }
         />
       </div>

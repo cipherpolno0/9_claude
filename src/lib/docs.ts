@@ -39,9 +39,9 @@ export const DOC_STATUS_LABEL: Record<DocStatus, string> = {
   cancelled: "ยกเลิก",
 };
 
-export const DOC_TABS = ["receive", "send", "draft"] as const;
+export const DOC_TABS = ["receive", "send", "draft", "archive"] as const;
 export type DocTab = (typeof DOC_TABS)[number];
-export const DOC_TAB_LABEL: Record<DocTab, string> = { receive: "หนังสือรับ", send: "หนังสือส่ง", draft: "ร่าง" };
+export const DOC_TAB_LABEL: Record<DocTab, string> = { receive: "หนังสือรับ", send: "หนังสือส่ง", draft: "ร่าง", archive: "คลังเก็บ" };
 export const isDocTab = (v: unknown): v is DocTab => (DOC_TABS as readonly string[]).includes(String(v));
 
 export const isDocKind = (v: unknown): v is DocKind => (DOC_KINDS as readonly string[]).includes(String(v));
@@ -161,7 +161,36 @@ export type DocDetail = {
     message: string;
     from_unit_name: string;
     to_unit_id: string;
+    // บทที่ 29: เวลาของเส้นทางที่ส่งมาถึง (เส้นเวลา)
+    from_name?: string | null;
+    source_doc_date?: string | null;
+    source_issued_at?: string | null;
+    sent_at?: string;
+    read_at?: string | null;
+    received_at?: string | null;
   } | null;
+  // บทที่ 29: ปิดเรื่อง คลังเก็บ คำขอที่เกี่ยวข้อง
+  closed_at: string | null;
+  closed_by_name: string | null;
+  close_note: string | null;
+  open_work: number;
+  retention_years: number | null;
+  retain_until: string | null;
+  close_events: { action: "close" | "reopen"; note: string; at: string; actor_name: string | null }[];
+  requests: DocRequestLink[];
+  requests_hidden: number;
+};
+
+/** คำขอที่อ้างอิงหนังสือ (หน้าหนังสือ) */
+export type DocRequestLink = {
+  link_id: string;
+  request_id: string;
+  request_no: string;
+  title: string;
+  type_name: string;
+  status: string;
+  source: "manual" | "auto";
+  can_remove: boolean;
 };
 
 // ---------------------------------------------------------------
@@ -278,3 +307,198 @@ export function forwardSummary(routes: DocRoute[]) {
 /** คำขึ้นต้นและคำลงท้ายที่ใช้บ่อย เป็นเพียงตัวช่วยพิมพ์ ผู้ใช้พิมพ์คำอื่นได้ */
 export const SALUTATION_HINTS = ["เรียน", "กราบเรียน", "นมัสการ"];
 export const CLOSING_HINTS = ["ขอแสดงความนับถือ", "ขอแสดงความนับถืออย่างยิ่ง", "ขอนมัสการด้วยความเคารพ"];
+
+// ---------------------------------------------------------------
+// บทที่ 29: ค้นหา คลังเก็บ อ้างอิงคำขอ รายงาน
+// ---------------------------------------------------------------
+export type ArchiveRow = {
+  id: string;
+  direction: "receive" | "send";
+  kind: DocKind;
+  status: DocStatus;
+  series: string | null;
+  number_year: number | null;
+  seq_no: number | null;
+  doc_no: string;
+  doc_date: string | null;
+  from_text: string;
+  to_text: string;
+  subject: string;
+  urgency: DocUrgency;
+  classification: DocClass;
+  received_at: string | null;
+  closed_at: string;
+  closed_by_name: string | null;
+  close_note: string;
+  retention_years: number | null;
+  retain_until: string | null;
+  masked: boolean;
+  total_count: number;
+};
+
+export type SearchRow = {
+  id: string;
+  org_unit_id: string;
+  unit_name: string;
+  direction: "receive" | "send";
+  kind: DocKind;
+  status: DocStatus;
+  seq_no: number | null;
+  number_year: number | null;
+  doc_no: string;
+  doc_date: string | null;
+  received_at: string | null;
+  from_text: string;
+  to_text: string;
+  subject: string;
+  urgency: DocUrgency;
+  classification: DocClass;
+  closed_at: string | null;
+  snippet: string;
+  total_count: number;
+};
+
+/** เงื่อนไขค้นหา (?no= &subject= &from= &to= &df= &dt= &kind= &urgency= &dir= &body= &archive=1 &unit=) */
+export type DocSearch = {
+  unit: string;
+  no: string;
+  subject: string;
+  from: string;
+  to: string;
+  df: string;
+  dt: string;
+  kind: string;
+  urgency: string;
+  dir: string;
+  body: string;
+  archive: boolean;
+};
+
+export const searchIsEmpty = (s: DocSearch) =>
+  !s.no && !s.subject && !s.from && !s.to && !s.df && !s.dt && !s.kind && !s.urgency && !s.dir && !s.body;
+
+/** หนังสืออ้างอิงของคำขอ (หน้าคำขอกลาง) */
+export type RequestDocLink = {
+  link_id: string;
+  document_id: string;
+  unit_name: string;
+  direction: "receive" | "send";
+  kind: DocKind;
+  status: DocStatus;
+  doc_no: string;
+  doc_date: string | null;
+  seq_no: number | null;
+  number_year: number | null;
+  subject: string;
+  urgency: DocUrgency;
+  classification: DocClass;
+  closed_at: string | null;
+  source: "manual" | "auto";
+  created_by_name: string | null;
+  created_at: string;
+  can_remove: boolean;
+};
+export type RequestDocLinks = { linkable: boolean; items: RequestDocLink[]; hidden: number };
+
+export type LinkCandidate = {
+  id: string;
+  unit_name: string;
+  direction: "receive" | "send";
+  doc_no: string;
+  doc_date: string | null;
+  seq_no: number | null;
+  number_year: number | null;
+  subject: string;
+  classification: DocClass;
+};
+
+/** ป้ายของหนังสือในรายการอ้างอิง: เลขที่ หรือ เลขรับ */
+export function docRefLabel(d: { direction: "receive" | "send"; doc_no: string; seq_no: number | null; number_year: number | null }) {
+  if (d.direction === "receive") return `เลขรับ ${d.seq_no ?? "-"}/${d.number_year ?? "-"}${d.doc_no ? ` (ที่ ${d.doc_no})` : ""}`;
+  return d.doc_no ? `ที่ ${d.doc_no}` : "ร่าง";
+}
+
+export const DOC_REPORT_KINDS = ["register", "pending", "duration"] as const;
+export type DocReportKind = (typeof DOC_REPORT_KINDS)[number];
+export const DOC_REPORT_LABEL: Record<DocReportKind, string> = {
+  register: "ทะเบียนหนังสือรับ-ส่งรายเดือน",
+  pending: "หนังสือค้างดำเนินการ",
+  duration: "เวลาเฉลี่ยในการดำเนินการต่อหน่วย",
+};
+export const isDocReportKind = (v: unknown): v is DocReportKind => (DOC_REPORT_KINDS as readonly string[]).includes(String(v));
+
+export const THAI_MONTHS = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+];
+
+export type RegisterRow = {
+  id: string;
+  kind: DocKind;
+  status: DocStatus;
+  series: string | null;
+  seq_no: number | null;
+  number_year: number | null;
+  doc_no: string;
+  doc_date: string | null;
+  received_at: string | null;
+  from_text: string;
+  to_text: string;
+  subject: string;
+  urgency: DocUrgency;
+  classification: DocClass;
+  action_text: string;
+  note: string;
+  masked: boolean;
+};
+
+export type PendingRow = {
+  id: string;
+  direction: "receive" | "send";
+  kind: DocKind;
+  status: DocStatus;
+  seq_no: number | null;
+  number_year: number | null;
+  doc_no: string;
+  doc_date: string | null;
+  subject: string;
+  urgency: DocUrgency;
+  classification: DocClass;
+  started_at: string;
+  days: number;
+  act_open: number;
+  act_overdue: number;
+  propose_open: number;
+  forward_unreceived: number;
+  reply_waiting: number;
+  holders: string;
+  masked: boolean;
+};
+
+/** สิ่งที่หนังสือค้างรออยู่ (ข้อความสั้นสำหรับรายงาน) */
+export function pendingWaitText(r: PendingRow): string {
+  const parts: string[] = [];
+  if (r.propose_open) parts.push(`เสนอรอสั่งการ ${r.propose_open}`);
+  if (r.act_open) parts.push(`งานมอบหมายรอรายงานผล ${r.act_open}${r.act_overdue ? ` (เกินกำหนด ${r.act_overdue})` : ""}`);
+  if (r.forward_unreceived) parts.push(`รอปลายทางลงรับ ${r.forward_unreceived} หน่วย`);
+  if (r.reply_waiting) parts.push(`รอคำตอบ ${r.reply_waiting} หน่วย`);
+  if (!parts.length) parts.push(r.status === "issued" ? "ออกเลขแล้ว ยังไม่ส่ง" : "รอปิดเรื่อง");
+  return parts.join(" · ");
+}
+
+export type DurationRow = {
+  org_unit_id: string;
+  unit_name: string;
+  unit_code: string;
+  received_count: number;
+  closed_count: number;
+  avg_days: number | null;
+  min_days: number | null;
+  max_days: number | null;
+  open_count: number;
+  act_done: number;
+  act_avg_days: number | null;
+  act_late: number;
+};
+
+export type RetentionRule = { kind: DocKind; years: number | null; note: string; updated_at: string };

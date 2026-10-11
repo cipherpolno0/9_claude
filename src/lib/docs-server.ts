@@ -15,6 +15,15 @@ import {
   type InboxItem,
   type RouteCandidate,
   type TaskRow,
+  type ArchiveRow,
+  type DocSearch,
+  type DurationRow,
+  type LinkCandidate,
+  type PendingRow,
+  type RegisterRow,
+  type RequestDocLinks,
+  type RetentionRule,
+  type SearchRow,
 } from "./docs";
 
 /** ตัวอ่านข้อมูลสารบรรณ (ทำงานในนามผู้ใช้ ฐานข้อมูลตรวจสิทธิ์และชั้นความลับเอง) */
@@ -142,4 +151,102 @@ export async function markDocumentRead(docId: string): Promise<void> {
 export async function remindDocsDue(): Promise<void> {
   const supabase = await createClient();
   await supabase.rpc("remind_docs_due");
+}
+
+// ---------------------------------------------------------------
+// บทที่ 29: คลังเก็บ ค้นหา อ้างอิงคำขอ รายงาน อายุการเก็บ
+// ---------------------------------------------------------------
+export async function queryArchive(unitId: string, params: TableParams) {
+  const supabase = await createClient();
+  const { kind, dir, expired } = params.filters;
+  const { data, error } = await supabase.rpc("document_archive_rows", {
+    p_unit: unitId,
+    p_kind: isDocKind(kind) ? kind : null,
+    p_direction: dir === "receive" || dir === "send" ? dir : null,
+    p_expired: expired === "1",
+    p_q: params.q,
+    p_sort: params.sort,
+    p_dir: params.dir,
+    p_limit: params.pageSize,
+    p_offset: params.from,
+  });
+  const rows = (data as ArchiveRow[] | null) ?? [];
+  return { rows, total: Number(rows[0]?.total_count ?? 0), error };
+}
+
+const isoDate = (v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+
+export async function searchDocuments(s: DocSearch, page: number, pageSize: number) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("docs_search", {
+    p_unit: /^[0-9a-f-]{36}$/i.test(s.unit) ? s.unit : null,
+    p_doc_no: s.no || null,
+    p_subject: s.subject || null,
+    p_from: s.from || null,
+    p_to: s.to || null,
+    p_date_from: isoDate(s.df),
+    p_date_to: isoDate(s.dt),
+    p_kind: isDocKind(s.kind) ? s.kind : null,
+    p_urgency: isDocUrgency(s.urgency) ? s.urgency : null,
+    p_direction: s.dir === "receive" || s.dir === "send" ? s.dir : null,
+    p_body: s.body || null,
+    p_archive: s.archive,
+    p_limit: pageSize,
+    p_offset: (page - 1) * pageSize,
+  });
+  const rows = (data as SearchRow[] | null) ?? [];
+  return { rows, total: Number(rows[0]?.total_count ?? 0), error };
+}
+
+export async function fetchRequestDocLinks(requestId: string): Promise<RequestDocLinks | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("request_document_links", { p_request: requestId });
+  if (error) return null;
+  return (data as RequestDocLinks | null) ?? null;
+}
+
+export async function fetchLinkCandidates(requestId: string, q: string): Promise<LinkCandidate[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("doc_link_candidates", { p_request: requestId, p_q: q });
+  if (error) return [];
+  return (data as LinkCandidate[] | null) ?? [];
+}
+
+export async function fetchRegisterReport(unitId: string, direction: "receive" | "send", yearBe: number, month: number): Promise<RegisterRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("docs_report_register", {
+    p_unit: unitId,
+    p_direction: direction,
+    p_year: yearBe,
+    p_month: month,
+  });
+  if (error) return [];
+  return (data as RegisterRow[] | null) ?? [];
+}
+
+export async function fetchPendingReport(unitId: string): Promise<PendingRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("docs_report_pending", { p_unit: unitId });
+  if (error) return [];
+  return (data as PendingRow[] | null) ?? [];
+}
+
+export async function fetchDurationReport(fiscalYear: number): Promise<DurationRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("docs_report_duration", { p_fiscal_year: fiscalYear });
+  if (error) return [];
+  return ((data as DurationRow[] | null) ?? []).map((r) => ({
+    ...r,
+    avg_days: r.avg_days === null ? null : Number(r.avg_days),
+    min_days: r.min_days === null ? null : Number(r.min_days),
+    max_days: r.max_days === null ? null : Number(r.max_days),
+    act_avg_days: r.act_avg_days === null ? null : Number(r.act_avg_days),
+  }));
+}
+
+export async function fetchRetentionRules(): Promise<RetentionRule[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("doc_retention_rules").select("kind, years, note, updated_at");
+  if (error) return [];
+  return (data as RetentionRule[] | null) ?? [];
 }

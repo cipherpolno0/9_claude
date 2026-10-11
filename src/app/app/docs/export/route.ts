@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const search = Object.fromEntries(sp.entries());
   const { ctx, unit } = await loadDocsScope(search);
   if (!ctx.canViewDocs || !unit) return new Response("ไม่มีสิทธิ์", { status: 403 });
-  const tab: DocTab = isDocTab(sp.get("tab")) && sp.get("tab") !== "draft" ? (sp.get("tab") as DocTab) : "receive";
+  const tab: DocTab = isDocTab(sp.get("tab")) && sp.get("tab") !== "draft" && sp.get("tab") !== "archive" ? (sp.get("tab") as DocTab) : "receive";
   const years = await fetchDocumentYears(unit.id);
   const year = years.includes(Number(sp.get("year"))) ? Number(sp.get("year")) : currentYearBe();
   const params = parseTableParams(sp, {

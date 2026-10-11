@@ -18,6 +18,8 @@ import { StatusRequestSummary } from "@/components/status-request-summary";
 import { Button } from "@/components/ui/button";
 import { VenueRequestSummary } from "@/components/venue-request-summary";
 import { requireWorkspace } from "@/lib/auth/guards";
+import { docRefLabel, DOC_STATUS_LABEL } from "@/lib/docs";
+import { fetchRequestDocLinks } from "@/lib/docs-server";
 import { fetchRequisitionDetail } from "@/lib/inventory-server";
 import { DEFAULT_STEP_DAYS, isPlaceRequestType, isVenueRequestType, stepDeadline } from "@/lib/place-requests";
 import { fetchRequestDocuments } from "@/lib/place-requests-server";
@@ -26,6 +28,8 @@ import { fetchRequestDetail } from "@/lib/requests/queries";
 import { isNoticeType, isStatusType } from "@/lib/status";
 import { thaiDate, thaiDateTime } from "@/lib/thai";
 
+import { LinkDocumentPicker, UnlinkButton } from "../../docs/archive-forms";
+import { DocBadges } from "../../docs/ui";
 import { ApprovalQtyForm } from "../../inventory/requisitions/[id]/req-actions";
 import { DecisionForm, RequesterActions } from "./request-actions";
 
@@ -62,6 +66,8 @@ export default async function RequestDetailPage({
   const requisitionId =
     request.type_key === "requisition" && typeof request.payload.requisition_id === "string" ? request.payload.requisition_id : null;
   const requisition = requisitionId ? await fetchRequisitionDetail(requisitionId) : null;
+  // หนังสืออ้างอิง (ระบบที่ 1, 4, 6, 7): ฐานข้อมูลคืนเฉพาะหนังสือที่ผู้ใช้เห็น ที่เหลือนับเป็น hidden
+  const docLinks = await fetchRequestDocLinks(request.id);
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">
@@ -314,6 +320,46 @@ export default async function RequestDetailPage({
           )}
         </div>
       </div>
+
+      {docLinks?.linkable ? (
+        <div className="mt-6 rounded-xl border bg-card p-5" data-testid="request-docs">
+          <h2 className="text-xl font-bold text-primary">หนังสืออ้างอิง</h2>
+          {docLinks.items.length ? (
+            <ul className="mt-3 flex flex-col gap-2">
+              {docLinks.items.map((l) => (
+                <li key={l.link_id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3" data-testid="request-doc">
+                  <span className="min-w-0">
+                    <span className="font-semibold">{docRefLabel(l)}</span>{" "}
+                    <DocBadges urgency={l.urgency} classification={l.classification} />
+                    <Link href={`/app/docs/${l.document_id}`} prefetch={false} className="text-primary underline underline-offset-4">
+                      {l.subject}
+                    </Link>
+                    <span className="block text-sm text-muted-foreground">
+                      {l.unit_name} · {l.direction === "receive" ? "หนังสือรับ" : "หนังสือส่ง"} · {DOC_STATUS_LABEL[l.status]}
+                      {l.closed_at ? " · ปิดเรื่องแล้ว" : ""}
+                      {l.source === "auto" ? " · ร่างแจ้งผลที่ระบบสร้าง" : ` · อ้างอิงโดย ${l.created_by_name ?? "-"} ${thaiDate(l.created_at, "short")}`}
+                    </span>
+                  </span>
+                  {l.can_remove && l.source === "manual" ? <UnlinkButton linkId={l.link_id} /> : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-muted-foreground">ยังไม่มีหนังสืออ้างอิง</p>
+          )}
+          {docLinks.hidden > 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">มีหนังสืออ้างอิงอีก {docLinks.hidden} ฉบับที่ท่านไม่มีสิทธิ์เห็น</p>
+          ) : null}
+          {ctx.canViewDocs ? (
+            <details className="mt-3" data-testid="open-link-doc">
+              <summary className="cursor-pointer font-semibold text-primary">อ้างอิงหนังสือ</summary>
+              <div className="mt-2">
+                <LinkDocumentPicker requestId={request.id} />
+              </div>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-6 rounded-xl border bg-card p-5">
         <h2 className="text-xl font-bold text-primary">ประวัติทั้งหมด</h2>
