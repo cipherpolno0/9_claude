@@ -8,6 +8,7 @@ import { examName } from "@/lib/exam-forms";
 import { RESULT_STATUS_LABEL, passSections } from "@/lib/exam-results";
 import { fetchPassList, fetchPassListOptions, fetchResultForms } from "@/lib/exam-results-server";
 import { fetchAccessibleUnits } from "@/lib/org-units-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 
 import { UnitFilter } from "../../../personnel/unit-filter";
 import { PassListSheet } from "./pass-list";
@@ -34,6 +35,7 @@ export default async function PassListsPage({ searchParams }: { searchParams: Pr
   const venue = venues.some((o) => o.id === p.venue) ? p.venue : null;
   const place = places.some((o) => o.id === p.place) ? p.place : null;
   const rows = p.round && (venue || place) ? await fetchPassList(p.round.id, p.unit, place, venue) : [];
+  if (rows.length) await logPersonAccess("pass_list", venue ?? place ?? "", "view", `บัญชีผู้สอบได้ ${rows.length} คน`);
   const round = p.round;
   const sections = round ? passSections(rows, round.exam_type, round.level, p.by) : [];
   const form = round ? (forms.find((f) => f.exam_type === round.exam_type) ?? null) : null;

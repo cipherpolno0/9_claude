@@ -1,6 +1,6 @@
 /** ค่าตั้งด้านบัญชีผู้ใช้ที่ใช้ร่วมกันทั้งเซิร์ฟเวอร์และหน้าจอ */
 
-export const PASSWORD_MIN_LENGTH = 10;
+export const PASSWORD_MIN_LENGTH = 12;
 
 export function passwordProblem(password: string): string | null {
   if (password.length < PASSWORD_MIN_LENGTH) {

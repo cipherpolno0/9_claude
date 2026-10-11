@@ -19,6 +19,7 @@ import {
 } from "@/lib/exam-batches";
 import { fetchBatch, fetchCandidates, fetchHistory, uploadLimits, type CandidateFilter } from "@/lib/exam-batches-server";
 import { examName, type FormColumn } from "@/lib/exam-forms";
+import { logPersonAccess } from "@/lib/privacy-server";
 import { thaiDate, thaiDateTime, toBuddhistDateText } from "@/lib/thai";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,7 @@ export default async function BatchPage({
   const sp = await searchParams;
   const batch = await fetchBatch(id);
   if (!batch) notFound();
+  await logPersonAccess("registration_batch", batch.id, "view");
 
   const filter: CandidateFilter = sp.show === "error" || sp.show === "ok" || sp.show === "withdrawn" ? sp.show : "all";
   const page = Math.max(1, Math.floor(Number(sp.page) || 1));

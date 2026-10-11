@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { REQUESTABLE_ROLES } from "@/lib/auth/config";
 import type { OrgUnit } from "@/lib/org-units";
 import { getSupabaseEnv } from "@/lib/supabase/admin";
@@ -40,7 +41,10 @@ export default async function RequestAccountPage() {
       </p>
       <div className="mt-6 rounded-xl border bg-card p-5">
         {ready ? (
-          <RequestForm units={units} roles={roles} />
+          <>
+            <PrivacyNotice noticeKey="notice_account" className="mb-4" />
+            <RequestForm units={units} roles={roles} />
+          </>
         ) : (
           <p className="font-medium text-destructive">ขณะนี้ยังรับคำขอไม่ได้ เพราะระบบยังไม่ได้เชื่อมต่อฐานข้อมูล</p>
         )}

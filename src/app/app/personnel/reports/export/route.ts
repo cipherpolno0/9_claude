@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { requireMenu } from "@/lib/auth/guards";
 import { xlsxResponse } from "@/lib/data-table";
+import { logPersonAccess } from "@/lib/privacy-server";
 import { buildReport } from "@/lib/reports-server";
 
 import { readReportParams } from "../params";
@@ -12,6 +13,7 @@ export async function GET(request: NextRequest) {
   const { kind, fiscalYear, unit } = await readReportParams(request.nextUrl.searchParams);
   if (!unit) return new Response("ท่านไม่มีสิทธิ์ดูทะเบียนบุคคล", { status: 403 });
   const report = await buildReport(kind, unit, fiscalYear);
+  await logPersonAccess("personnel_report", unit.id, "export", report.title);
   const rows = report.footer && report.rows.length > 0 ? [...report.rows, report.footer] : report.rows;
   return xlsxResponse(
     `${report.title} ${unit.name}.xlsx`,

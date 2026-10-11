@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ErrorText } from "@/components/form";
 import { RequestTimeline } from "@/components/request-timeline";
 import { LEVEL_LABEL } from "@/lib/org-units";
 import { PLACE_REQUEST_LABEL, isPlaceRequestType, requestKindLabel } from "@/lib/place-requests";
 import { REQUEST_STATUS_LABEL } from "@/lib/requests/labels";
+import { PUBLIC_SEARCH_LIMITED, SearchLimitedError } from "@/lib/security/rate-limit";
 import { thaiDate } from "@/lib/thai";
 import { fetchPublicRequestStatus } from "@/lib/track-server";
 
@@ -14,13 +16,27 @@ export const metadata: Metadata = { title: "สถานะคำขอ" };
 /** เส้นเวลาของคำขอ 1 รายการ สำหรับผู้ไม่ล็อกอิน: ไม่มีชื่อบุคคล ความเห็น เหตุผล และเอกสารแนบ */
 export default async function TrackRequestPage({ params }: { params: Promise<{ no: string }> }) {
   const { no } = await params;
-  const request = await fetchPublicRequestStatus(decodeURIComponent(no));
+  let request: Awaited<ReturnType<typeof fetchPublicRequestStatus>>;
+  try {
+    request = await fetchPublicRequestStatus(decodeURIComponent(no));
+  } catch (e) {
+    if (!(e instanceof SearchLimitedError)) throw e;
+    return (
+      <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-10">
+        <h1 className="text-2xl font-bold text-primary sm:text-3xl">สถานะคำขอ</h1>
+        <div className="mt-4" data-testid="search-limited">
+          <ErrorText>{PUBLIC_SEARCH_LIMITED}</ErrorText>
+        </div>
+      </section>
+    );
+  }
   if (!request) notFound();
 
   const typeText = isPlaceRequestType(request.type_key)
     ? `${PLACE_REQUEST_LABEL[request.type_key]}${requestKindLabel(request.kind)}`
     : request.type_name;
-  const current = request.steps.find((s) => s.step_no === request.current_step);
+  const steps = request.steps ?? [];
+  const current = steps.find((s) => s.step_no === request.current_step);
   const facts: [string, string][] = [
     ["เลขที่คำขอ", request.request_no],
     ["ชนิดคำขอ", typeText],
@@ -35,7 +51,7 @@ export default async function TrackRequestPage({ params }: { params: Promise<{ n
     [
       "ขั้นที่อยู่ปัจจุบัน",
       request.status === "pending" && current
-        ? `ขั้นที่ ${current.step_no} จาก ${request.steps.length} · ${LEVEL_LABEL[current.level]} · ${current.unit_name}`
+        ? `ขั้นที่ ${current.step_no} จาก ${steps.length} · ${LEVEL_LABEL[current.level]} · ${current.unit_name}`
         : request.status === "returned" && current
           ? `ส่งกลับให้ผู้ยื่นแก้ไข (จากขั้นที่ ${current.step_no})`
           : "สิ้นสุดการพิจารณาแล้ว",

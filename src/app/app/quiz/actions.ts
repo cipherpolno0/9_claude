@@ -32,6 +32,7 @@ import {
   type QuestionStatus,
 } from "@/lib/quiz";
 import { questionFilterArgs } from "@/lib/quiz-server";
+import { checkUpload } from "@/lib/security/file-check";
 import { createClient } from "@/lib/supabase/server";
 
 // สิทธิ์ทุกรายการตรวจที่ฐานข้อมูล (RLS และฟังก์ชัน can_manage_quiz) ผู้ที่ไม่ใช่ผู้จัดการคลังข้อสอบจะแก้ไม่ได้แม้เรียกตรง
@@ -453,24 +454,20 @@ export async function uploadLessonMedia(
     const file = formData.get("file");
     const kind = String(formData.get("kind") ?? "");
     if (!(file instanceof File) || file.size === 0) return { ok: false, error: "กรุณาเลือกไฟล์" };
-    let ext: string;
-    if (kind === "image") {
-      ext = LESSON_IMAGE_TYPES[file.type];
-      if (!ext) return { ok: false, error: "รับเฉพาะรูป JPG, PNG หรือ WebP" };
-      if (file.size > LESSON_IMAGE_MAX_BYTES) return { ok: false, error: "รูปใหญ่เกิน 5 MB" };
-    } else if (kind === "pdf") {
-      if (file.type !== "application/pdf") return { ok: false, error: "รับเฉพาะไฟล์ PDF" };
-      if (file.size > LESSON_PDF_MAX_BYTES) return { ok: false, error: "ไฟล์ PDF ใหญ่เกิน 10 MB" };
-      ext = "pdf";
-    } else {
-      return { ok: false, error: "ชนิดไฟล์ไม่ถูกต้อง" };
-    }
+    // ตรวจชนิดจากเนื้อไฟล์จริงและขนาด (บทที่ 31)
+    if (kind !== "image" && kind !== "pdf") return { ok: false, error: "ชนิดไฟล์ไม่ถูกต้อง" };
+    const checked =
+      kind === "image"
+        ? await checkUpload(file, LESSON_IMAGE_TYPES, LESSON_IMAGE_MAX_BYTES, "รับเฉพาะรูป JPG, PNG หรือ WebP")
+        : await checkUpload(file, { "application/pdf": "pdf" }, LESSON_PDF_MAX_BYTES, "รับเฉพาะไฟล์ PDF");
+    if (!checked.ok) return { ok: false, error: checked.error };
+    const ext = checked.ext;
     const supabase = await createClient();
     // ต้องเป็นบทเรียนที่ผู้ใช้มองเห็น (RLS ให้เห็นเฉพาะผู้จัดการคลังข้อสอบ)
     const { data: lesson } = await supabase.from("lessons").select("id").eq("id", lessonId).maybeSingle();
     if (!lesson) return { ok: false, error: DENIED };
     const path = `${lessonId}/${randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from(LESSON_MEDIA_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+    const { error } = await supabase.storage.from(LESSON_MEDIA_BUCKET).upload(path, file, { contentType: checked.mime, upsert: false });
     if (error) return { ok: false, error: explainError(error) };
     return { ok: true, path };
   } catch (error) {

@@ -6,6 +6,7 @@ import { workbookResponse } from "@/lib/excel";
 import { examName } from "@/lib/exam-forms";
 import { certSort, passSections } from "@/lib/exam-results";
 import { fetchPassList, fetchResultForms } from "@/lib/exam-results-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 
 import { passColumns, summaryLine } from "../pass-list";
 import { readPassListParams } from "../params";
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
   }
   const round = p.round;
   const [rows, forms] = await Promise.all([fetchPassList(round.id, p.unit, p.place, p.venue), fetchResultForms()]);
+  await logPersonAccess("pass_list", p.venue ?? p.place ?? "", "export", `บัญชีผู้สอบได้ ${rows.length} คน`);
   const form = forms.find((f) => f.exam_type === round.exam_type);
   const sections = passSections(rows, round.exam_type, round.level, p.by);
   const cols = passColumns(round.exam_type);

@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 
 import { explainError, type ActionResult } from "@/lib/errors";
+import { checkUpload } from "@/lib/security/file-check";
 import { createClient } from "@/lib/supabase/server";
 
 import { ATTACHMENT_BUCKET, ATTACHMENT_MAX_BYTES, ATTACHMENT_TYPES, type Attachment } from "./config";
@@ -30,9 +31,10 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
     const docTypeId = String(formData.get("doc_type_id") ?? "");
 
     if (!(file instanceof File) || file.size === 0) return { ok: false, error: "กรุณาเลือกไฟล์" };
-    const ext = ATTACHMENT_TYPES[file.type];
-    if (!ext) return { ok: false, error: "รับเฉพาะไฟล์ PDF รูปภาพ (JPG, PNG) Excel และ Word" };
-    if (file.size > ATTACHMENT_MAX_BYTES) return { ok: false, error: "ไฟล์ใหญ่เกิน 10 MB" };
+    // ตรวจชนิดจากเนื้อไฟล์จริงและขนาด (บทที่ 31)
+    const checked = await checkUpload(file, ATTACHMENT_TYPES, ATTACHMENT_MAX_BYTES, "รับเฉพาะไฟล์ PDF รูปภาพ (JPG, PNG) Excel และ Word");
+    if (!checked.ok) return { ok: false, error: checked.error };
+    const ext = checked.ext;
     if (!entityTable || !entityId) return { ok: false, error: "ไม่ทราบว่าแนบกับรายการใด" };
 
     const supabase = await createClient();
@@ -45,7 +47,7 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
     const path = `${user.id}/${randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage
       .from(ATTACHMENT_BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false });
+      .upload(path, file, { contentType: checked.mime, upsert: false });
     if (uploadError) return { ok: false, error: explainError(uploadError) };
 
     const { error } = await supabase.from("attachments").insert({
@@ -54,7 +56,7 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
       org_unit_id: orgUnitId,
       storage_path: path,
       file_name: file.name.slice(0, 200),
-      mime_type: file.type,
+      mime_type: checked.mime,
       size_bytes: file.size,
       ...(/^[0-9a-f-]{36}$/i.test(docTypeId) ? { doc_type_id: docTypeId } : {}),
     });

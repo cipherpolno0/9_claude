@@ -8,6 +8,7 @@ import "@fontsource/sarabun/latin-500.css";
 import "@fontsource/sarabun/latin-600.css";
 import "@fontsource/sarabun/latin-700.css";
 import "./globals.css";
+import { ScrollRegions } from "@/components/scroll-regions";
 import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -24,7 +25,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="th" className="h-full antialiased">
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        <ScrollRegions />
+      </body>
     </html>
   );
 }

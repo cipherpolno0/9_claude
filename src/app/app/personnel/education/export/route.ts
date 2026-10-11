@@ -4,6 +4,7 @@ import { requireMenu } from "@/lib/auth/guards";
 import { xlsxResponse } from "@/lib/data-table";
 import { SCHOOL_TYPE_LABEL, STAFF_STATUS_LABEL, TRACK_LABEL, isTrack, type Track } from "@/lib/education";
 import { educationTableParams, queryEducationStaff } from "@/lib/education-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 import { toBuddhistDateText } from "@/lib/thai";
 
 /** ส่งออกรายชื่อ จศป. ของแท่งที่เปิดอยู่ ตามเงื่อนไขค้นหา กรอง และเรียง ที่ใช้อยู่ (ไม่เกิน 10,000 แถว) */
@@ -12,6 +13,7 @@ export async function GET(request: NextRequest) {
   const search = request.nextUrl.searchParams;
   const track: Track = isTrack(search.get("track")) ? (search.get("track") as Track) : "dhamma";
   const { rows } = await queryEducationStaff(track, educationTableParams(search), true);
+  await logPersonAccess("personnel_export", "", "export", `ทะเบียน จศป. ${TRACK_LABEL[track]} ${rows.length} แถว`);
   return xlsxResponse(
     `ทะเบียน จศป. ${TRACK_LABEL[track]}.xlsx`,
     TRACK_LABEL[track],

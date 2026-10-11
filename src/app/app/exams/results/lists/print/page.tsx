@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { requireMenu } from "@/lib/auth/guards";
 import { passSections } from "@/lib/exam-results";
 import { fetchPassList, fetchResultForms } from "@/lib/exam-results-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 
 import { passListQuery, readPassListParams } from "../params";
 import { PassPrintSheet } from "./print-sheet";
@@ -18,6 +19,7 @@ export default async function PassListPrintPage({ searchParams }: { searchParams
     return <p className="p-6 text-muted-foreground">กรุณาเลือกรอบ และสนามสอบหรือสำนัก จากหน้า บัญชีผู้สอบได้ ก่อน</p>;
   }
   const [rows, forms] = await Promise.all([fetchPassList(p.round.id, p.unit, p.place, p.venue), fetchResultForms()]);
+  await logPersonAccess("pass_list", p.venue ?? p.place ?? "", "print", `บัญชีผู้สอบได้ ${rows.length} คน`);
   const round = p.round;
   return (
     <PassPrintSheet

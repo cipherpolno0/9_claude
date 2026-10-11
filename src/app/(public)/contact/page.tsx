@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { PlaceMap } from "@/components/public/place-map";
 import type { SiteContact } from "@/lib/site-content";
 import { fetchSiteContact } from "@/lib/site-content-server";
@@ -83,6 +84,7 @@ export default async function ContactPage() {
           </h2>
           <p className="mt-1 mb-4 text-muted-foreground">เลือกหัวข้อให้ตรงกับเรื่อง ข้อความจะส่งถึงเจ้าหน้าที่ผู้รับผิดชอบหัวข้อนั้นโดยตรง</p>
           {topics.length ? <ContactForm topics={topics} /> : <p className="text-muted-foreground">แบบฟอร์มยังไม่พร้อมใช้งาน</p>}
+          <PrivacyNotice noticeKey="notice_contact" className="mt-4" />
         </section>
       </div>
     </section>

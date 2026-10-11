@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { requireWorkspace } from "@/lib/auth/guards";
 import { isUuid } from "@/lib/budget";
+import { logPersonAccess } from "@/lib/privacy-server";
 import { CONTACT_STATUS_CLASS as STATUS_CLASS, CONTACT_STATUS_LABEL } from "@/lib/site-content";
 import { fetchContactMessage } from "@/lib/site-content-server";
 import { thaiDateTime } from "@/lib/thai";
@@ -21,6 +22,7 @@ export default async function MessagePage({ params }: { params: Promise<{ id: st
   if (!isUuid(id)) notFound();
   const m = await fetchContactMessage(id);
   if (!m) notFound();
+  await logPersonAccess("contact_message", m.id, "view");
   return (
     <section className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-10">
       <p>

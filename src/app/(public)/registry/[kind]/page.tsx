@@ -8,6 +8,7 @@ import { PlaceStatusBadge } from "@/components/place-status-badge";
 import { VenueStatusBadge } from "@/components/venue-status-badge";
 import { SECTS, SECT_LABEL, type Sect } from "@/lib/org-units";
 import { PLACE_STATUSES, PLACE_STATUS_LABEL, placeAddress } from "@/lib/places";
+import { PUBLIC_SEARCH_LIMITED, SearchLimitedError } from "@/lib/security/rate-limit";
 import { PUBLIC_EXPORT_LIMIT, REGISTRY_BASE, findRegistryKind } from "@/lib/registry";
 import {
   fetchPublicDistricts,
@@ -49,7 +50,11 @@ export default async function RegistryListPage({ params, searchParams }: Props) 
       : queryPublicPlaces(kind.placeType, filters, table.pageSize, table.from)
     ).then(
       (r) => ({ ...r, error: null as string | null }),
-      () => ({ rows: [], total: 0, error: "อ่านข้อมูลไม่ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง" }),
+      (e: unknown) => ({
+        rows: [],
+        total: 0,
+        error: e instanceof SearchLimitedError ? PUBLIC_SEARCH_LIMITED : "อ่านข้อมูลไม่ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง",
+      }),
     ),
     fetchPublicRegions(),
     fetchPublicProvinces(),

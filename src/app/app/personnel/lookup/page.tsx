@@ -10,6 +10,7 @@ import { explainError } from "@/lib/errors";
 import { fetchAccessibleUnits } from "@/lib/org-units-server";
 import { PERSON_STATUSES, PERSON_STATUS_LABEL, personName } from "@/lib/persons";
 import { fetchPositionTypes } from "@/lib/persons-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 import { educationLines, lookupTableParams, queryLookup } from "@/lib/reports-server";
 
 import { UnitFilter } from "../unit-filter";
@@ -26,6 +27,7 @@ export default async function LookupPage({
   await requireMenu("/app/personnel");
   const params = lookupTableParams(await searchParams);
   const [table, units, positions] = await Promise.all([queryLookup(params), fetchAccessibleUnits(), fetchPositionTypes()]);
+  if (params.q) await logPersonAccess("person_search", "", "search", "ตรวจสอบบุคลากร");
 
   const rows: DataTableRow[] = table.rows.map((p) => {
     const name = personName(p);

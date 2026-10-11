@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { requireMenu } from "@/lib/auth/guards";
 import { buildReport } from "@/lib/reports-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 
 import { readReportParams } from "../params";
 import { ReportPrintSheet } from "./print-sheet";
@@ -19,5 +20,7 @@ export default async function ReportPrintPage({
   if (!unit) {
     return <p className="p-6 text-muted-foreground">บทบาทของท่านยังไม่มีสิทธิ์ดูทะเบียนบุคคล จึงไม่มีรายงานให้พิมพ์</p>;
   }
-  return <ReportPrintSheet report={await buildReport(kind, unit, fiscalYear)} />;
+  const report = await buildReport(kind, unit, fiscalYear);
+  await logPersonAccess("personnel_report", unit.id, "print", report.title);
+  return <ReportPrintSheet report={report} />;
 }

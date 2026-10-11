@@ -21,6 +21,13 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen flex-1">
+      {/* ลิงก์ข้ามเมนู (บทที่ 31): กด Tab ครั้งแรกแล้ว Enter เพื่อไปที่เนื้อหาโดยไม่ต้องผ่านเมนูทั้งหมด */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-gold focus:px-3 focus:py-2 focus:text-gold-foreground print:hidden"
+      >
+        ข้ามไปยังเนื้อหา
+      </a>
       {/* แถบข้างจอใหญ่ */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r bg-muted lg:flex print:hidden">
         <WorkspaceBrand />
@@ -38,7 +45,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
             </Link>
           </p>
         ) : null}
-        <main className="flex-1">{children}</main>
+        <main id="main" className="flex-1">
+          {children}
+        </main>
       </div>
     </div>
   );

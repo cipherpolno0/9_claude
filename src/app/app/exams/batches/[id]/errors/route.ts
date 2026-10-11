@@ -5,6 +5,7 @@ import { workbookResponse } from "@/lib/excel";
 import { CANDIDATE_STATUS_LABEL, maskedId } from "@/lib/exam-batches";
 import { fetchBatch, fetchErrorCandidates } from "@/lib/exam-batches-server";
 import { templateFileName } from "@/lib/exam-forms";
+import { logPersonAccess } from "@/lib/privacy-server";
 
 /**
  * รายการข้อผิดพลาดของชุดเป็น Excel: หนึ่งบรรทัดต่อหนึ่งข้อผิดพลาด บอกแถวในไฟล์ ช่อง และเหตุผล
@@ -16,6 +17,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const batch = await fetchBatch(id);
   if (!batch) return new Response("ไม่พบชุดรายชื่อ", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
   const rows = await fetchErrorCandidates(batch.id);
+  await logPersonAccess("registration_batch", batch.id, "export", "รายการข้อผิดพลาด");
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("ข้อผิดพลาด", { views: [{ state: "frozen", ySplit: 3 }] });

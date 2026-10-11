@@ -9,6 +9,7 @@ import { fetchPublicProvinces } from "@/lib/registry-server";
 import { REQUEST_STATUS_LABEL } from "@/lib/requests/labels";
 import { thaiDate } from "@/lib/thai";
 import { TRACK_PAGE_SIZE } from "@/lib/track";
+import { PUBLIC_SEARCH_LIMITED, SearchLimitedError } from "@/lib/security/rate-limit";
 import { fetchPublicRequestStatus, fetchPublicRequestYears, queryPublicRequests } from "@/lib/track-server";
 
 import { TrackForms } from "../track-forms";
@@ -28,8 +29,15 @@ export default async function TrackSearchPage({
   const no = one("no").slice(0, 30);
 
   // ค้นด้วยเลขที่คำขอ: พบแล้วไปหน้าเส้นเวลาของคำขอนั้น
+  let limited = false;
   if (no) {
-    const found = await fetchPublicRequestStatus(no);
+    let found: Awaited<ReturnType<typeof fetchPublicRequestStatus>> = null;
+    try {
+      found = await fetchPublicRequestStatus(no);
+    } catch (e) {
+      if (!(e instanceof SearchLimitedError)) throw e;
+      limited = true;
+    }
     if (found) redirect(`/track/${encodeURIComponent(found.request_no)}`);
   }
 
@@ -58,7 +66,11 @@ export default async function TrackSearchPage({
       </p>
       <h1 className="mt-2 text-2xl font-bold text-primary sm:text-3xl">ผลการค้นหาคำขอ</h1>
 
-      {no ? (
+      {limited ? (
+        <div className="mt-4" data-testid="search-limited">
+          <ErrorText>{PUBLIC_SEARCH_LIMITED}</ErrorText>
+        </div>
+      ) : no ? (
         <div className="mt-4" data-testid="track-not-found">
           <ErrorText>
             ไม่พบคำขอเลขที่ {no.toUpperCase()} กรุณาตรวจเลขที่อีกครั้ง (รูปแบบ เช่น ESTAB-2569-0001) หรือค้นจากชนิดคำขอ จังหวัด และปี

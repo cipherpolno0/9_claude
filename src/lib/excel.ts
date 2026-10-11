@@ -1,5 +1,6 @@
 import "server-only";
 
+import { sniffKind } from "@/lib/security/file-check";
 import ExcelJS from "exceljs";
 
 /** ตัวช่วยอ่านไฟล์ Excel ที่ผู้ใช้อัปโหลด ใช้ร่วมกันทุกหน้านำเข้า */
@@ -32,6 +33,10 @@ export async function readUploadedSheet(
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: "กรุณาเลือกไฟล์ Excel" };
   if (!file.name.toLowerCase().endsWith(".xlsx")) return { ok: false, error: "รองรับเฉพาะไฟล์นามสกุล .xlsx" };
   if (file.size > 4 * 1024 * 1024) return { ok: false, error: "ไฟล์ใหญ่เกิน 4 MB" };
+  // ตรวจเนื้อไฟล์ว่าเป็นแฟ้ม .xlsx จริง (zip) ก่อนเปิด (บทที่ 31)
+  if (sniffKind(new Uint8Array(await file.slice(0, 16).arrayBuffer())) !== "zip") {
+    return { ok: false, error: "ไฟล์ไม่ใช่แฟ้ม Excel (.xlsx) กรุณาใช้แม่แบบที่ดาวน์โหลดจากหน้านี้" };
+  }
 
   const workbook = new ExcelJS.Workbook();
   try {

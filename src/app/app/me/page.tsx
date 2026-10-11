@@ -181,6 +181,19 @@ export default async function MyProfilePage() {
           </div>
         ) : null}
       </div>
+      <div className="mt-6 rounded-xl border bg-card p-5" data-testid="me-privacy">
+        <h2 className="text-xl font-bold text-primary">ข้อมูลส่วนบุคคลของท่าน</h2>
+        <p className="mt-1">
+          ข้อมูลที่ไม่ถูกต้องให้ยื่นคำขอแก้ไขด้านบน ขอลบข้อมูลหรือสอบถามเรื่องข้อมูลส่วนบุคคล ส่งที่{" "}
+          <Link href="/contact?topic=privacy" className="font-semibold text-primary underline underline-offset-4">
+            ติดต่อเรา หัวข้อ ข้อมูลส่วนบุคคล
+          </Link>{" "}
+          อ่าน{" "}
+          <Link href="/privacy" className="font-semibold text-primary underline underline-offset-4">
+            นโยบายความเป็นส่วนตัว
+          </Link>
+        </p>
+      </div>
     </section>
   );
 }

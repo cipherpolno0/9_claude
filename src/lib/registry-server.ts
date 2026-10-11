@@ -7,6 +7,7 @@ import { SECTS } from "@/lib/org-units";
 import { isUuid } from "@/lib/persons-server";
 import { PLACE_STATUSES, type CivilOption, type PlaceAddressParts, type PlaceType } from "@/lib/places";
 import { PUBLIC_CACHE_SECONDS, PUBLIC_EXPORT_LIMIT, REGISTRY_TAG } from "@/lib/registry";
+import { SearchLimitedError, publicSearchAllowed } from "@/lib/security/rate-limit";
 import { createPublicClient } from "@/lib/supabase/public";
 import { VENUE_STATUSES, isVenueType, type OfficerRole, type VenueStatus, type VenueType } from "@/lib/venues";
 
@@ -159,8 +160,11 @@ async function loadPlaces(type: PlaceType, f: RegistryFilters, limit: number, of
 }
 const loadPlacesCached = unstable_cache(loadPlaces, ["registry-places"], cacheOptions);
 
-export function queryPublicPlaces(type: PlaceType, f: RegistryFilters, limit: number, offset: number) {
-  return f.q ? loadPlaces(type, f, limit, offset) : loadPlacesCached(type, f, limit, offset);
+/** คำค้น (q) ไม่แคชและนับจำนวนครั้งต่อเครื่อง (บทที่ 31) เกินแล้วโยน SearchLimitedError */
+export async function queryPublicPlaces(type: PlaceType, f: RegistryFilters, limit: number, offset: number) {
+  if (!f.q) return loadPlacesCached(type, f, limit, offset);
+  if (!(await publicSearchAllowed())) throw new SearchLimitedError();
+  return loadPlaces(type, f, limit, offset);
 }
 
 export type PublicPlace = PlaceAddressParts & {
@@ -246,8 +250,10 @@ async function loadVenues(f: RegistryFilters, limit: number, offset: number) {
 }
 const loadVenuesCached = unstable_cache(loadVenues, ["registry-venues"], cacheOptions);
 
-export function queryPublicVenues(f: RegistryFilters, limit: number, offset: number) {
-  return f.q ? loadVenues(f, limit, offset) : loadVenuesCached(f, limit, offset);
+export async function queryPublicVenues(f: RegistryFilters, limit: number, offset: number) {
+  if (!f.q) return loadVenuesCached(f, limit, offset);
+  if (!(await publicSearchAllowed())) throw new SearchLimitedError();
+  return loadVenues(f, limit, offset);
 }
 
 export type PublicVenue = PlaceAddressParts & {

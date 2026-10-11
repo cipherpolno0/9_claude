@@ -33,6 +33,7 @@ import {
   fetchPositionTypes,
   isPersonnelEditor,
 } from "@/lib/persons-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 import { thaiDate } from "@/lib/thai";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +76,7 @@ export default async function PersonPage({
   // ถ้า RLS ไม่ให้เห็นบุคคลนี้ จะได้ null และแสดงหน้าไม่พบ
   const person = await fetchPerson(id);
   if (!person) notFound();
+  await logPersonAccess("person", person.id, "view");
 
   const tab: TabKey = TABS.some((t) => t.key === query.tab) ? (query.tab as TabKey) : "general";
   const [appointments, educationItems] = await Promise.all([fetchAppointments(person.id), fetchEducationStaff(person.id)]);

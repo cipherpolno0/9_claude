@@ -54,7 +54,8 @@ export function SiteHeader() {
                     aria-haspopup={item.children ? "true" : undefined}
                     className={cn(
                       "flex items-center gap-1 rounded-md px-3 py-2 font-medium whitespace-nowrap transition-colors hover:bg-white/15",
-                      active && "bg-white/15 text-gold",
+                      // สีทองบนพื้นเข้มขึ้น (ความต่างสีประมาณ 6.6:1) เดิม bg-white/15 ได้เพียง 3.4:1 ไม่ผ่านเกณฑ์ 4.5:1
+                      active && "bg-black/25 text-gold hover:bg-black/25",
                     )}
                   >
                     {item.title}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { Button } from "@/components/ui/button";
 import { ATTEMPT_KIND_LABEL, QUIZ_BASE, courseSlug, durationText } from "@/lib/quiz";
 import { fetchMyProgress, fetchMyQuizHistory, isSignedIn } from "@/lib/quiz-learn-server";
@@ -42,6 +43,7 @@ export default async function QuizMyPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary sm:text-3xl">ผลการเรียนของฉัน</h1>
+          <PrivacyNotice noticeKey="notice_quiz" className="my-4" />
           <p className="mt-1 text-muted-foreground">
             ความคืบหน้า ประวัติ และพัฒนาการ จากแบบทดสอบที่ท่านส่งขณะเข้าสู่ระบบ (ที่ทำตอนไม่ได้เข้าสู่ระบบไม่รวมอยู่ในหน้านี้)
           </p>

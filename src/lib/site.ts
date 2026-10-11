@@ -244,6 +244,13 @@ export const adminMenu: AdminMenuItem[] = [
     adminOnly: false,
   },
   {
+    title: "ข้อมูลส่วนบุคคลและความปลอดภัย",
+    href: "/app/admin/privacy",
+    description: "นโยบายความเป็นส่วนตัว ข้อความแจ้งวัตถุประสงค์ อายุการเก็บ บันทึกการเข้าดูข้อมูลบุคคล และรายงานสิทธิ์",
+    icon: ShieldCheck,
+    adminOnly: true,
+  },
+  {
     title: "เขตปกครอง",
     href: "/app/admin/org-units",
     description: "ต้นไม้ ส่วนกลาง ภาค จังหวัด อำเภอ ตำบล แยกนิกาย และนำเข้าจาก Excel",

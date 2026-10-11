@@ -8,6 +8,7 @@ import { parseTableParams } from "@/lib/data-table";
 import { explainError } from "@/lib/errors";
 import { LEVEL_LABEL, SECTS, SECT_LABEL } from "@/lib/org-units";
 import { isUuid } from "@/lib/persons-server";
+import { PUBLIC_SEARCH_LIMITED, publicSearchAllowed } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -42,8 +43,10 @@ export default async function OfficersDirectoryPage({
   });
   const { sect, level, region } = params.filters;
   const supabase = await createClient();
+  // คำค้นนับจำนวนครั้งต่อเครื่อง (บทที่ 31)
+  const limited = Boolean(params.q) && !(await publicSearchAllowed());
   const [officers, regions] = await Promise.all([
-    supabase.rpc("public_officers", {
+    limited ? Promise.resolve({ data: [] as Officer[] }) : supabase.rpc("public_officers", {
       p_q: params.q,
       p_sect: (SECTS as readonly string[]).includes(sect) ? sect : null,
       p_level: (LEVELS as readonly string[]).includes(level) ? level : null,
@@ -82,7 +85,12 @@ export default async function OfficersDirectoryPage({
         รายชื่อเจ้าคณะ รองเจ้าคณะ และเลขานุการ ที่ดำรงตำแหน่งอยู่ในปัจจุบัน ค้นได้ด้วยชื่อ ฉายา วัด เขตปกครอง หรือตำแหน่ง
       </p>
       <div className="mt-6">
-        {officers.error ? <ErrorText>{explainError(officers.error)}</ErrorText> : null}
+        {limited ? (
+          <div data-testid="search-limited">
+            <ErrorText>{PUBLIC_SEARCH_LIMITED}</ErrorText>
+          </div>
+        ) : null}
+        {"error" in officers && officers.error ? <ErrorText>{explainError(officers.error)}</ErrorText> : null}
         <DataTable
           columns={[
             { key: "name", header: "ชื่อ-ฉายา" },

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { requireMenu } from "@/lib/auth/guards";
 import { uploadLimits } from "@/lib/exam-batches-server";
 import { fetchRegisterRounds } from "@/lib/exam-forms-server";
@@ -26,6 +27,7 @@ export default async function NewBatchPage() {
         </Link>
       </p>
       <h1 className="mt-2 text-2xl font-bold text-primary sm:text-3xl">อัปโหลดรายชื่อผู้สมัครสอบ</h1>
+      <PrivacyNotice noticeKey="notice_registration" className="my-4" />
       <p className="mt-1 text-muted-foreground">
         เลือกรอบ สำนักหรือสถานศึกษา และสนามสอบ ให้ตรงกับไฟล์ แล้วอัปโหลดไฟล์บัญชี ศ. ที่กรอกแล้ว ระบบจะตรวจทุกแถวและแสดงตัวอย่างก่อนยืนยัน
         ยังไม่มีแม่แบบ?{" "}

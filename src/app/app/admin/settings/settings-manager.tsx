@@ -62,7 +62,7 @@ export function SettingsManager({
 
       <div className="rounded-xl border bg-card p-5">
         <h2 className="text-xl font-bold text-primary">บทบาท</h2>
-        <p className="text-muted-foreground">ติ๊กบทบาทที่ต้องยืนยันตัวตน 2 ขั้นก่อนเข้าพื้นที่ทำงาน</p>
+        <p className="text-muted-foreground">ติ๊กบทบาทที่ต้องยืนยันตัวตน 2 ขั้นก่อนเข้าพื้นที่ทำงาน (ผู้ดูแลระบบและเจ้าหน้าที่ส่วนกลางบังคับเสมอ)</p>
         <ul className="mt-3 flex flex-col">
           {roles.map((r) => (
             <li key={r.key} className="flex flex-wrap items-center justify-between gap-3 border-b py-2 last:border-b-0">
@@ -77,7 +77,7 @@ export function SettingsManager({
                   type="checkbox"
                   className="size-5 accent-[var(--primary)]"
                   checked={mfa[r.key] ?? false}
-                  disabled={pending || r.key === "admin"}
+                  disabled={pending || r.key === "admin" || r.key === "central_staff"}
                   onChange={(e) => toggleMfa(r.key, e.target.checked)}
                   aria-label={`บังคับยืนยันตัวตน 2 ขั้น: ${r.name}`}
                 />

@@ -14,6 +14,7 @@ import {
   SITE_FILES_BUCKET,
   SITE_TAG,
 } from "@/lib/site-content";
+import { checkUpload } from "@/lib/security/file-check";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -32,15 +33,15 @@ function refresh(paths: string[]) {
 }
 
 /** ตรวจไฟล์และอัปโหลดเข้าที่เก็บสาธารณะ site-files คืน path */
-async function uploadSiteFile(file: File, folder: string): Promise<{ path: string } | { error: string }> {
-  const ext = SITE_FILE_TYPES[file.type];
-  if (!ext) return { error: "รับเฉพาะไฟล์ PDF, Word, Excel หรือรูป JPG PNG WebP" };
-  if (file.size > SITE_FILE_MAX_BYTES) return { error: "ไฟล์ใหญ่เกิน 10 MB" };
-  const path = `${folder}${randomUUID()}.${ext}`;
+async function uploadSiteFile(file: File, folder: string): Promise<{ path: string; mime: string } | { error: string }> {
+  // ตรวจชนิดจากเนื้อไฟล์จริงและขนาด (บทที่ 31)
+  const checked = await checkUpload(file, SITE_FILE_TYPES, SITE_FILE_MAX_BYTES, "รับเฉพาะไฟล์ PDF, Word, Excel หรือรูป JPG PNG WebP");
+  if (!checked.ok) return { error: checked.error };
+  const path = `${folder}${randomUUID()}.${checked.ext}`;
   const supabase = await createClient();
-  const { error } = await supabase.storage.from(SITE_FILES_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+  const { error } = await supabase.storage.from(SITE_FILES_BUCKET).upload(path, file, { contentType: checked.mime, upsert: false });
   if (error) return { error: explainError(error) };
-  return { path };
+  return { path, mime: checked.mime };
 }
 
 const fileName = (file: File) => text(file.name.replace(/[\\/]/g, "_"), 255) || "ไฟล์";
@@ -93,7 +94,7 @@ export async function saveAnnouncement(id: string | null, formData: FormData): P
         announcement_id: annId,
         storage_path: up.path,
         file_name: fileName(file),
-        mime_type: file.type,
+        mime_type: up.mime,
         size_bytes: file.size,
       });
       if (error) return { ok: false, error: explainError(error), id: annId ?? undefined };
@@ -153,7 +154,7 @@ export async function saveDownload(id: string | null, formData: FormData): Promi
     if (hasFile) {
       const up = await uploadSiteFile(file, "downloads/");
       if ("error" in up) return { ok: false, error: up.error };
-      Object.assign(row, { storage_path: up.path, file_name: fileName(file), mime_type: file.type, size_bytes: file.size, url: null });
+      Object.assign(row, { storage_path: up.path, file_name: fileName(file), mime_type: up.mime, size_bytes: file.size, url: null });
     } else if (url) {
       Object.assign(row, { storage_path: null, file_name: null, mime_type: null, size_bytes: null, url });
     }

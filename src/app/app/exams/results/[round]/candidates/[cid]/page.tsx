@@ -6,6 +6,7 @@ import { requireMenu } from "@/lib/auth/guards";
 import { examName } from "@/lib/exam-forms";
 import { RESULT_LABEL, isResultCode, type ResultCode, type Scores } from "@/lib/exam-results";
 import { fetchResultHistory, fetchResultRounds, isUuid } from "@/lib/exam-results-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 import { createClient } from "@/lib/supabase/server";
 import { thaiDateTime } from "@/lib/thai";
 
@@ -32,6 +33,7 @@ export default async function ResultCandidatePage({ params }: { params: Promise<
     fetchResultHistory(roundId, cid),
   ]);
   if (!cand || cand.round_id !== roundId) notFound();
+  await logPersonAccess("candidate", cid, "view", "ผลสอบรายคน");
   const result = res as { result: ResultCode; scores: Scores; certificate_no: string; note: string } | null;
   const back = `/app/exams/results/${roundId}`;
   const name = [cand.title, cand.first_name, cand.monastic_name, cand.last_name].filter(Boolean).join(" ");

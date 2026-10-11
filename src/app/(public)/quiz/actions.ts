@@ -10,6 +10,7 @@ import { explainError, type ActionResult } from "@/lib/errors";
 import { isUuid } from "@/lib/persons-server";
 import { ATTEMPT_KINDS, QUIZ_BASE, isChoiceKey } from "@/lib/quiz";
 import { QUIZ_DEVICE_COOKIE, quizDevice } from "@/lib/quiz-learn-server";
+import { rateHit } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 // กติกาทั้งหมด (ลำดับขั้น เจ้าของ เวลา การตรวจคะแนน) ตรวจในฟังก์ชันฐานข้อมูล quiz_... ไฟล์นี้เพียงส่งต่อคำขอ
@@ -36,6 +37,9 @@ export async function startQuiz(_prev: FormState, formData: FormData): Promise<F
   const courseId = String(formData.get("course_id") ?? "");
   if (!(ATTEMPT_KINDS as readonly string[]).includes(kind)) return { error: "ชนิดแบบทดสอบไม่ถูกต้อง" };
   if (kind === "full" ? !isUuid(courseId) : !isUuid(unitId)) return { error: "ไม่พบรายวิชาหรือหน่วยการเรียนนี้" };
+
+  // จำกัดการเริ่มแบบทดสอบ 60 ครั้งต่อชั่วโมงต่อเครื่อง (บทที่ 31)
+  if (!(await rateHit("quiz_start", 60, "hour"))) return { error: "เริ่มแบบทดสอบบ่อยเกินไป (เกิน 60 ครั้งต่อชั่วโมง) กรุณารอสักครู่" };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("quiz_start", {

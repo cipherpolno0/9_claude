@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { requireMenu } from "@/lib/auth/guards";
 import { fetchAccessibleUnits } from "@/lib/org-units-server";
 import { personName } from "@/lib/persons";
@@ -29,6 +30,7 @@ export default async function EditPersonPage({ params }: { params: Promise<{ id:
         </Link>
       </p>
       <h1 className="mt-2 mb-6 text-2xl font-bold text-primary sm:text-3xl">แก้ไขข้อมูลบุคคล</h1>
+      <PrivacyNotice noticeKey="notice_personnel" className="my-4" />
       <PersonForm person={person} units={units} isAdmin={ctx.isAdmin} />
     </section>
   );

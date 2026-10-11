@@ -1,5 +1,7 @@
 import "server-only";
 
+import { SearchLimitedError, publicSearchAllowed } from "@/lib/security/rate-limit";
+
 import { unstable_cache } from "next/cache";
 
 import { isPlaceRequestType } from "@/lib/place-requests";
@@ -59,6 +61,8 @@ export async function queryPublicRequests(filters: TrackFilters, page: number) {
 export async function fetchPublicRequestStatus(requestNo: string): Promise<PublicRequestStatus | null> {
   const no = requestNo.trim().toUpperCase();
   if (!/^[A-Z0-9]{2,12}-\d{4}-\d{1,6}$/.test(no)) return null;
+  // ค้นด้วยเลขที่คำขอนับจำนวนครั้งต่อเครื่อง (บทที่ 31) เลขที่คำขอเดาได้ จึงกันการไล่เดาทีละเลข
+  if (!(await publicSearchAllowed())) throw new SearchLimitedError();
   const { data } = await createPublicClient().rpc("public_request_status", { p_request_no: no });
   return (data as PublicRequestStatus | null) ?? null;
 }

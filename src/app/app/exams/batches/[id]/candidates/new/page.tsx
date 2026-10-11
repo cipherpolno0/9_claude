@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { requireMenu } from "@/lib/auth/guards";
 import { examName } from "@/lib/exam-forms";
 
@@ -23,6 +24,7 @@ export default async function NewCandidatePage({ params }: { params: Promise<{ i
         </Link>
       </p>
       <h1 className="mt-2 text-2xl font-bold text-primary sm:text-3xl">เพิ่มรายชื่อผู้สมัครทีละคน</h1>
+      <PrivacyNotice noticeKey="notice_registration" className="my-4" />
       <p className="mt-1 text-muted-foreground">
         {examName(batch.round.exam_type, batch.round.level)} {batch.round.year_be} · แบบ {batch.template.code} · สนามสอบ {batch.venue.name}
       </p>

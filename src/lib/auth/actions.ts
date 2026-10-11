@@ -8,6 +8,8 @@ import type { FormState } from "@/components/form";
 import { explainError } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { lockedMessage, loginFailed, loginLockedUntil, loginSucceeded, rateHit } from "@/lib/security/rate-limit";
+import { checkUpload } from "@/lib/security/file-check";
 
 import { originFromHeaders, safeNext } from "./origin";
 import {
@@ -34,9 +36,21 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "กรุณากรอกอีเมลและรหัสผ่าน" };
 
+  // จำกัดล็อกอินผิด (บทที่ 31): บัญชี+เครื่อง 5 ครั้ง หรือเครื่อง 30 ครั้ง ใน 15 นาที ระงับ 15 นาที
+  const locked = await loginLockedUntil(email);
+  if (locked) return { error: lockedMessage(locked) };
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: explainError(error) };
+  if (error) {
+    const wrongPassword = error.code === "invalid_credentials" || (error.status === 400 && /invalid/i.test(error.message));
+    if (wrongPassword) {
+      const until = await loginFailed(email);
+      if (until) return { error: lockedMessage(until) };
+    }
+    return { error: explainError(error) };
+  }
+  await loginSucceeded(email);
 
   redirect(safeNext(text(formData, "next"), "/app"));
 }
@@ -53,6 +67,9 @@ export async function logout() {
 export async function requestPasswordReset(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = text(formData, "email").toLowerCase();
   if (!email) return { error: "กรุณากรอกอีเมล" };
+  if (!(await rateHit("password_reset", 5, "hour"))) {
+    return { error: "ขอรีเซ็ตรหัสผ่านบ่อยเกินไป (เกิน 5 ครั้งต่อชั่วโมง) กรุณารอสักครู่" };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -120,9 +137,13 @@ export async function submitAccountRequest(_prev: FormState, formData: FormData)
   if (problem) return { error: problem };
   if (password !== confirm) return { error: "รหัสผ่านทั้งสองช่องไม่ตรงกัน" };
   if (!(letter instanceof File) || letter.size === 0) return { error: "กรุณาแนบหนังสือรับรอง" };
-  const ext = LETTER_TYPES[letter.type];
-  if (!ext) return { error: "หนังสือรับรองต้องเป็นไฟล์ PDF, JPG หรือ PNG" };
-  if (letter.size > LETTER_MAX_BYTES) return { error: "ไฟล์หนังสือรับรองใหญ่เกิน 10 MB" };
+  // ตรวจชนิดจากเนื้อไฟล์จริง ไม่เชื่อชนิดที่เบราว์เซอร์ส่งมา (บทที่ 31)
+  const checked = await checkUpload(letter, LETTER_TYPES, LETTER_MAX_BYTES, "หนังสือรับรองต้องเป็นไฟล์ PDF, JPG หรือ PNG");
+  if (!checked.ok) return { error: checked.error };
+  const ext = checked.ext;
+  if (!(await rateHit("account_request", 3, "hour"))) {
+    return { error: "ส่งคำขอบัญชีบ่อยเกินไป (เกิน 3 ครั้งต่อชั่วโมง) กรุณารอสักครู่" };
+  }
 
   try {
     const admin = createAdminClient();
@@ -164,7 +185,7 @@ export async function submitAccountRequest(_prev: FormState, formData: FormData)
     const path = `${userId}/${Date.now()}.${ext}`;
     const { error: uploadError } = await admin.storage
       .from(LETTER_BUCKET)
-      .upload(path, letter, { contentType: letter.type, upsert: false });
+      .upload(path, letter, { contentType: checked.mime, upsert: false });
     if (uploadError) return rollback(uploadError);
 
     const { error: requestError } = await admin.from("account_requests").insert({

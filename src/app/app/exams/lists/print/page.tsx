@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { requireMenu } from "@/lib/auth/guards";
 import { groupByVenue } from "@/lib/exam-lists";
 import { fetchList } from "@/lib/exam-lists-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 
 import { listQuery, readListParams } from "../params";
 import { ListPrintSheet } from "./print-sheet";
@@ -22,6 +23,7 @@ export default async function ExamListPrintPage({
     return <p className="p-6 text-muted-foreground">กรุณาเลือกปี แบบ ศ. และสนามสอบหรือสำนัก จากหน้า ตรวจรายชื่อและพิมพ์บัญชี ศ. ก่อน</p>;
   }
   const rows = await fetchList(p.year, p.form, p.unit, p.place, p.venue);
+  await logPersonAccess("registration_list", p.venue ?? p.place ?? "", "print", `บัญชีรายชื่อ ${rows.length} คน`);
   return (
     <ListPrintSheet
       form={p.form}

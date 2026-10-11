@@ -4,6 +4,7 @@ import { requireMenu } from "@/lib/auth/guards";
 import { xlsxResponse } from "@/lib/data-table";
 import { PERSON_TYPE_LABEL, countsPhansa, personStatusLabel, phansaOf } from "@/lib/persons";
 import { personnelTableParams, queryPersonnel } from "@/lib/persons-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 
 /**
  * ส่งออกรายชื่อบุคลากรเป็น Excel ตามเงื่อนไขค้นหา กรอง และเรียง ที่ใช้อยู่ (ไม่เกิน 10,000 แถว)
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
   await requireMenu("/app/personnel");
   const params = personnelTableParams(request.nextUrl.searchParams);
   const { rows } = await queryPersonnel(params, true);
+  await logPersonAccess("personnel_export", "", "export", `ทะเบียนบุคคล ${rows.length} แถว`);
   return xlsxResponse(
     "ทะเบียนบุคคล.xlsx",
     "ทะเบียนบุคคล",

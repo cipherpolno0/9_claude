@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Send } from "lucide-react";
 
 import { ErrorText, Field, InfoText, selectClass } from "@/components/form";
@@ -19,6 +19,12 @@ export function ContactForm({ topics }: { topics: { key: string; name: string }[
   const [pending, startTransition] = useTransition();
   // เวลาที่เริ่มกรอก (กันบอทที่ส่งทันที) ตั้งเมื่อผู้ใช้เริ่มพิมพ์ครั้งแรก
   const startedAt = useRef<number>(0);
+  // ลิงก์ /contact?topic=privacy (จากหน้านโยบายความเป็นส่วนตัว) เลือกหัวข้อให้ล่วงหน้า หน้านี้เป็นหน้าคงที่จึงอ่านจากที่อยู่ในเบราว์เซอร์
+  const topicRef = useRef<HTMLSelectElement>(null);
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("topic");
+    if (t && topicRef.current && topics.some((x) => x.key === t)) topicRef.current.value = t;
+  }, [topics, sent]);
   const markStart = () => {
     if (!startedAt.current) startedAt.current = Date.now();
   };
@@ -61,7 +67,7 @@ export function ContactForm({ topics }: { topics: { key: string; name: string }[
         <Label htmlFor="contact-topic">
           หัวข้อ<span className="text-destructive"> *</span>
         </Label>
-        <select id="contact-topic" name="topic" required defaultValue="" className={selectClass}>
+        <select ref={topicRef} id="contact-topic" name="topic" required defaultValue="" className={selectClass}>
           <option value="" disabled>
             เลือกหัวข้อที่ต้องการติดต่อ
           </option>

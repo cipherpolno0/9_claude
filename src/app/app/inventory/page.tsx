@@ -48,10 +48,15 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
 
       <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="inventory-summary">
         {cards.map((c) => (
-          <Link key={c.key} href={c.href} className="rounded-xl border bg-card p-4 hover:bg-secondary" data-testid={`sum-${c.key}`}>
-            <dt className="text-sm text-muted-foreground">{c.label}</dt>
+          <div key={c.key} className="relative rounded-xl border bg-card p-4 hover:bg-secondary">
+            <dt className="text-sm text-muted-foreground">
+              {/* ทั้งการ์ดกดได้ด้วย after:absolute โดยยังคงโครงสร้าง dl > div > dt + dd ที่ถูกต้อง */}
+              <Link href={c.href} className="after:absolute after:inset-0 after:rounded-xl" data-testid={`sum-${c.key}`}>
+                {c.label}
+              </Link>
+            </dt>
             <dd className={cn("text-2xl font-semibold tabular-nums", c.value > 0 && "text-primary")}>{c.value.toLocaleString("th-TH")}</dd>
-          </Link>
+          </div>
         ))}
       </dl>
 

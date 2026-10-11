@@ -9,6 +9,7 @@ import { examName, templateLabel } from "@/lib/exam-forms";
 import { formParam, groupByVenue } from "@/lib/exam-lists";
 import { fetchList, fetchListOptions } from "@/lib/exam-lists-server";
 import { fetchAccessibleUnits } from "@/lib/org-units-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 
 import { UnitFilter } from "../../personnel/unit-filter";
 import { SignatureBlock, VenueHeader, VenueTable } from "./form-list";
@@ -38,6 +39,7 @@ export default async function ExamListsPage({
   const venue = venues.some((o) => o.id === p.venue) ? p.venue : null;
   const place = places.some((o) => o.id === p.place) ? p.place : null;
   const rows = p.year && p.form && (venue || place) ? await fetchList(p.year, p.form, p.unit, place, venue) : [];
+  if (rows.length) await logPersonAccess("registration_list", venue ?? place ?? "", "view", `บัญชีรายชื่อ ${rows.length} คน`);
   const sections = groupByVenue(rows);
   const printQuery = listQuery({ ...p, venue, place });
 

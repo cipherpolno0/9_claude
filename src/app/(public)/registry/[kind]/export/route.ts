@@ -4,6 +4,7 @@ import { xlsxResponse } from "@/lib/data-table";
 import { SECT_LABEL, type Sect } from "@/lib/org-units";
 import { PLACE_STATUS_LABEL, type PlaceStatus } from "@/lib/places";
 import { PUBLIC_EXPORT_LIMIT, findRegistryKind } from "@/lib/registry";
+import { PUBLIC_SEARCH_LIMITED, SearchLimitedError } from "@/lib/security/rate-limit";
 import { queryPublicPlaces, queryPublicVenues, readRegistryFilters, registryTableParams } from "@/lib/registry-server";
 import { VENUE_STATUS_LABEL, VENUE_TYPE_LABEL, venueLevelsText } from "@/lib/venues";
 
@@ -91,7 +92,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         p.parent_name ?? "",
       ]),
     );
-  } catch {
+  } catch (e) {
+    if (e instanceof SearchLimitedError) return new Response(PUBLIC_SEARCH_LIMITED, { status: 429 });
     return new Response("อ่านข้อมูลไม่ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง", { status: 503 });
   }
 }

@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireMenu } from "@/lib/auth/guards";
 import { candidateName, maskedId, rowSource } from "@/lib/exam-batches";
 import { fetchCandidate } from "@/lib/exam-batches-server";
+import { logPersonAccess } from "@/lib/privacy-server";
 
 import { CandidateForm } from "../candidate-form";
 import { candidateValues, loadCandidateForm } from "../load";
@@ -18,6 +19,7 @@ export default async function EditCandidatePage({ params }: { params: Promise<{ 
   const { batch, mode, titles } = await loadCandidateForm(id);
   const candidate = await fetchCandidate(batch.id, cid);
   if (!candidate) notFound();
+  await logPersonAccess("candidate", candidate.id, "view");
   if (candidate.status === "withdrawn") redirect(`/app/exams/batches/${batch.id}?show=withdrawn`);
 
   return (
