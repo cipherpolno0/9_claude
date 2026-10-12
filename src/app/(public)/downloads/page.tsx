@@ -6,6 +6,7 @@ import { EXAM_TYPE_LABEL, EXAM_TYPES, examName } from "@/lib/exam-forms";
 import { fetchPublicForms } from "@/lib/exam-forms-server";
 import { DOWNLOAD_CATEGORIES, DOWNLOAD_CATEGORY_LABEL, fileKindLabel, fileSizeText, siteFileUrl, type DownloadItem } from "@/lib/site-content";
 import { fetchPublicDownloads } from "@/lib/site-content-server";
+import { USER_MANUALS } from "@/lib/manuals";
 import { findPublicMenu } from "@/lib/site";
 import { thaiDate } from "@/lib/thai";
 
@@ -112,6 +113,27 @@ export default async function DownloadsPage() {
                   </div>
                 )}
               </div>
+            ) : null}
+
+            {c === "manual" ? (
+              <ul className="mt-3 flex flex-col gap-2" data-testid="user-manuals">
+                {USER_MANUALS.map((m) => (
+                  <li key={m.file}>
+                    <a
+                      href={`/manuals/${m.file}`}
+                      className="flex items-center gap-3 rounded-lg border bg-card p-3 hover:bg-secondary"
+                      data-testid="manual-link"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="font-semibold">คู่มือผู้ใช้: {m.role}</span>
+                        <span className="block text-sm text-muted-foreground">{m.description} · PDF</span>
+                      </span>
+                      <Download className="size-5 shrink-0" aria-hidden />
+                      <span className="sr-only">ดาวน์โหลด</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
             ) : null}
 
             {c === "manual" ? (

@@ -25,6 +25,8 @@ import {
   FileDown,
   CalendarDays,
   Phone,
+  Activity,
+  DatabaseZap,
 } from "lucide-react";
 
 import { REGISTRY_BASE, REGISTRY_KINDS } from "@/lib/registry";
@@ -304,6 +306,20 @@ export const adminMenu: AdminMenuItem[] = [
     href: "/app/admin/form-templates",
     description: "หัวตาราง ชนิดข้อมูล บังคับกรอก กฎตรวจ ของแม่แบบ Excel สมัครสอบ และรายการคำนำหน้าชื่อ",
     icon: FileSpreadsheet,
+    adminOnly: true,
+  },
+  {
+    title: "นำเข้าข้อมูลจริง",
+    href: "/app/admin/data-import",
+    description: "นำเข้าตามลำดับ เขตปกครอง > สถานที่ > บุคคลและตำแหน่ง > สนามสอบ > ผู้ใช้ พร้อมรายงานแถวที่ผิด",
+    icon: DatabaseZap,
+    adminOnly: true,
+  },
+  {
+    title: "สถานะระบบ",
+    href: "/app/admin/system",
+    description: "สภาพแวดล้อม การเชื่อมต่อฐานข้อมูล ข้อผิดพลาดของระบบ และการสำรองข้อมูล",
+    icon: Activity,
     adminOnly: true,
   },
   {

@@ -159,7 +159,7 @@ export type CalendarEventRow = {
 // ---------------------------------------------------------------
 export type HomeStats = { year_be: number | null; samnak: number; venues: number; candidates: number };
 
-export const CONTACT_TOPIC_KEYS = ["registry", "exams", "results", "requests", "quiz", "system", "privacy"] as const;
+export const CONTACT_TOPIC_KEYS = ["registry", "exams", "results", "requests", "quiz", "system", "privacy", "pilot"] as const;
 export type ContactTopicKey = (typeof CONTACT_TOPIC_KEYS)[number];
 export const isContactTopic = (v: unknown): v is ContactTopicKey => (CONTACT_TOPIC_KEYS as readonly string[]).includes(String(v));
 

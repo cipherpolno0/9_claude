@@ -1,0 +1,65 @@
+# สำรองข้อมูลชุดใช้งานจริงทุกวัน (บทที่ 32): ฐานข้อมูล + ไฟล์ทุก bucket เข้ารหัสแล้วเก็บเป็น artifact 30 วัน
+# ต้องตั้ง Secrets ที่ GitHub > Settings > Secrets and variables > Actions (ดู docs/ops/สำรองและกู้คืน.md):
+#   PROD_DB_URL               สตริงเชื่อมต่อฐานข้อมูลชุดใช้งานจริง (Session pooler)
+#   PROD_SUPABASE_URL         https://ukdlgujfongdesbbnblm.supabase.co
+#   PROD_SUPABASE_SECRET_KEY  Secret key ของชุดใช้งานจริง
+#   BACKUP_PASSPHRASE         รหัสผ่านสำหรับเข้ารหัสไฟล์สำรอง (ยาว เก็บไว้นอกระบบด้วย ถ้าหายจะเปิดไฟล์สำรองไม่ได้)
+name: สำรองข้อมูลรายวัน
+
+on:
+  schedule:
+    - cron: "7 19 * * *" # 02:07 น. เวลาไทย
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PROD_DB_URL: ${{ secrets.PROD_DB_URL }}
+      SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.PROD_SUPABASE_SECRET_KEY }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: ติดตั้งเครื่องมือ
+        run: |
+          sudo apt-get update -q && sudo apt-get install -yq postgresql-client
+          npm ci --ignore-scripts
+      - name: ตรวจว่าตั้ง Secrets ครบ
+        run: |
+          for v in PROD_DB_URL SUPABASE_URL SUPABASE_SECRET_KEY BACKUP_PASSPHRASE; do
+            [ -n "${!v}" ] || { echo "ยังไม่ได้ตั้ง Secret ของ $v"; exit 1; }
+          done
+      - name: สำรองฐานข้อมูล
+        run: bash scripts/ops/backup-db.sh backup/db
+      - name: สำรองไฟล์
+        run: node scripts/ops/storage-files.mjs backup backup/storage
+      - name: เข้ารหัส
+        run: |
+          name="backup-$(TZ=Asia/Bangkok date +%Y%m%d-%H%M)"
+          tar -C backup -czf - . | gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+            --passphrase "$BACKUP_PASSPHRASE" -o "$name.tar.gz.gpg"
+          rm -rf backup
+          echo "BACKUP_FILE=$name.tar.gz.gpg" >> "$GITHUB_ENV"
+          ls -lh "$name.tar.gz.gpg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backup
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 30
+          if-no-files-found: error

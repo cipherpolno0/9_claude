@@ -8,7 +8,8 @@
     "start": "next start --port 3002",
     "lint": "eslint",
     "seed:test-users": "node --env-file=.env.local scripts/seed-test-users.mjs",
-    "check:secrets": "node scripts/security/check-client-secrets.mjs"
+    "check:secrets": "node scripts/security/check-client-secrets.mjs",
+    "ops:create-admin": "node scripts/ops/create-admin.mjs"
   },
   "dependencies": {
     "@fontsource/sarabun": "^5.3.0",

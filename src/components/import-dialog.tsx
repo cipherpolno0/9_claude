@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { ActionResult } from "@/lib/errors";
+import { importErrorReport } from "@/lib/import-report";
 import { cn } from "@/lib/utils";
 
 /**
@@ -86,6 +87,31 @@ export function ImportDialog<T>({
   };
   const rows = result ? (onlyErrors ? result.rows.filter((r) => r.status === "error") : result.rows) : [];
   const canConfirm = result !== null && counts.error === 0 && counts.new > 0;
+
+  // รายงานแถวที่ผิดเป็น Excel (บทที่ 32): ส่งต่อให้ผู้กรอกแก้ไฟล์ได้ตรงแถว
+  const downloadErrors = () => {
+    if (!result) return;
+    startTransition(async () => {
+      const report = await importErrorReport({
+        title,
+        columns: [...columns],
+        rows: result.rows.filter((r) => r.status === "error").map(({ rowNumber, cells, message }) => ({ rowNumber, cells, message })),
+      });
+      if (!report.ok) {
+        setError(report.error);
+        return;
+      }
+      const bytes = Uint8Array.from(atob(report.base64), (c) => c.charCodeAt(0));
+      const url = URL.createObjectURL(
+        new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = report.fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  };
 
   return (
     <Dialog open onOpenChange={(o) => !o && !pending && onClose()}>
@@ -175,7 +201,12 @@ export function ImportDialog<T>({
             </div>
 
             {counts.error > 0 ? (
-              <p className="font-medium text-destructive">ยังนำเข้าไม่ได้ กรุณาแก้แถวที่ผิดในไฟล์ Excel แล้วอัปโหลดใหม่</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="font-medium text-destructive">ยังนำเข้าไม่ได้ กรุณาแก้แถวที่ผิดในไฟล์ Excel แล้วอัปโหลดใหม่</p>
+                <Button type="button" variant="outline" onClick={downloadErrors} disabled={pending} data-testid="import-error-report">
+                  ดาวน์โหลดรายงานแถวที่ผิด (Excel)
+                </Button>
+              </div>
             ) : counts.new === 0 ? (
               <p className="font-medium">ไม่มีแถวใหม่ให้นำเข้า ทุกแถวมีในระบบแล้ว</p>
             ) : null}
