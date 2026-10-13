@@ -247,20 +247,26 @@ async def take(pool, s, cache, problems, ctxname):
     return cache[key]
 
 
-def small_copy(file, max_w=900, quality=50):
-    """ย่อภาพก่อนใส่ใน PDF (ภาพต้นฉบับกว้าง 1280 px ใหญ่เกินจำเป็นสำหรับหน้า A4) ให้ไฟล์เล่มเดียวไม่เกินไม่กี่สิบ MB"""
-    if not file:
-        return file
+def small_copy(file, max_w=1280, quality=44):
+    """เข้ารหัสภาพใหม่ก่อนใส่ใน PDF: คงความกว้างเต็ม 1280 px (คมชัด) ลดคุณภาพ JPEG เล็กน้อย
+    แล้วบีบแบบไม่สูญเสียด้วย mozjpeg เพื่อให้ไฟล์รวมไม่เกินประมาณ 25 MB
+    (Chromium ฝัง JPEG ลง PDF ตามที่ให้ ขนาดภาพจึงเป็นตัวกำหนดขนาดไฟล์)"""
+    if not file: return file
+    import io
     from PIL import Image
-    out_dir = os.path.join(WORK, "small")
-    os.makedirs(out_dir, exist_ok=True)
+    out_dir = os.path.join(WORK, "small"); os.makedirs(out_dir, exist_ok=True)
     out = os.path.join(out_dir, os.path.basename(file))
-    if os.path.exists(out) and os.path.getmtime(out) >= os.path.getmtime(file):
-        return out
+    if os.path.exists(out) and os.path.getmtime(out) >= os.path.getmtime(file) and os.path.getmtime(out) >= os.path.getmtime(__file__): return out
     im = Image.open(file).convert("RGB")
-    if im.width > max_w:
-        im = im.resize((max_w, round(im.height * max_w / im.width)), Image.LANCZOS)
-    im.save(out, "JPEG", quality=quality, optimize=True, progressive=True)
+    if im.width > max_w: im = im.resize((max_w, round(im.height * max_w / im.width)), Image.LANCZOS)
+    buf = io.BytesIO(); im.save(buf, "JPEG", quality=quality, optimize=True)
+    data = buf.getvalue()
+    try:
+        import mozjpeg_lossless_optimization as moz
+        data = moz.optimize(data)
+    except ImportError:
+        pass
+    with open(out, "wb") as fh: fh.write(data)
     return out
 
 
@@ -422,6 +428,11 @@ async def main():
                            footer_template="<div style=\"font-size:9px;width:100%;text-align:center;color:#5f4d3d\">คู่มือการใช้งานฉบับสมบูรณ์ ระบบที่ 1–9 · หน้า <span class=\"pageNumber\"></span> / <span class=\"totalPages\"></span></div>")
             if pass_no == 1:
                 toc_pages = find_pages(parts, target)
+        # บีบโครงสร้าง PDF เพิ่ม (ไม่แตะภาพ สารบัญและโครงเรื่องคงเดิม) ลดได้ราว 1.5-2 MB
+        if subprocess.run(["which", "qpdf"], capture_output=True).returncode == 0:
+            tmp = target + ".opt"
+            r = subprocess.run(["qpdf", "--object-streams=generate", "--compress-streams=y", "--recompress-flate", "--compression-level=9", target, tmp], capture_output=True)
+            if r.returncode in (0, 3) and os.path.exists(tmp): os.replace(tmp, target)
         print(f"{target}: {nshots} ภาพ, สารบัญหาหน้าพบ {len(toc_pages)} รายการ")
         await browser.close()
     if problems:
