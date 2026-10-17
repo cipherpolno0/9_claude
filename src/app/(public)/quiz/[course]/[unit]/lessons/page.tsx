@@ -64,7 +64,7 @@ export default async function QuizLessonsPage({ params }: Props) {
                 id={`lesson-${l.id}`}
                 data-lesson={l.title}
                 data-wrong={l.wrong_count}
-                className="scroll-mt-24 rounded-xl border bg-card p-5"
+                className="scroll-mt-24 xl:scroll-mt-36 rounded-xl border bg-card p-5"
               >
                 <h2 className="text-xl font-bold text-primary">{l.title}</h2>
                 {l.wrong_count > 0 ? (

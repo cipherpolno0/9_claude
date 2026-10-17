@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CircleUserRound, IdCard, LogOut, Menu, Search } from "lucide-react";
 
+import { DeptSwitch } from "@/components/dept-switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,6 +56,8 @@ export function WorkspaceTopbar({ access, userName }: { access: NavAccess; userN
       </form>
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        {/* สวิตช์แผนก แสดงเฉพาะหน้าที่มีทั้งสองแผนก (src/lib/department.ts) */}
+        <DeptSwitch />
         <NotificationBell />
         <Button asChild variant="ghost" size="sm">
           <Link href="/app/me" aria-label="ประวัติของฉัน">

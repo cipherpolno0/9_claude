@@ -64,7 +64,7 @@ export default async function DownloadsPage() {
       {DOWNLOAD_CATEGORIES.map((c) => {
         const list = items.filter((d) => d.category === c);
         return (
-          <section key={c} id={c} className="mt-6 scroll-mt-24 rounded-xl border bg-card p-5" data-testid={`category-${c}`}>
+          <section key={c} id={c} className="mt-6 scroll-mt-24 xl:scroll-mt-36 rounded-xl border bg-card p-5" data-testid={`category-${c}`}>
             <h2 className="text-xl font-bold text-primary">{DOWNLOAD_CATEGORY_LABEL[c]}</h2>
 
             {c === "template" ? (

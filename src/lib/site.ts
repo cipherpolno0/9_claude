@@ -49,7 +49,7 @@ export type MenuItem = {
   children?: { title: string; href: string }[];
 };
 
-/** เมนูโซนสาธารณะ 7 เมนู (ไม่ต้องล็อกอิน) */
+/** เมนูโซนสาธารณะ 8 เมนู (ไม่ต้องล็อกอิน) เมนู สอบบาลีสนามหลวง เพิ่มในบทที่ 33 */
 export const publicMenu: MenuItem[] = [
   {
     title: "หน้าแรก",
@@ -77,6 +77,18 @@ export const publicMenu: MenuItem[] = [
     ],
   },
   {
+    title: "สอบบาลีสนามหลวง",
+    href: "/pali",
+    description: "ตรวจรายชื่อผู้ขอเข้าสอบ ค้นผลสอบ สถิติ และสนามสอบ ประโยคบาลีและบาลีศึกษา",
+    children: [
+      { title: "ตรวจรายชื่อผู้ขอเข้าสอบ", href: "/pali/check" },
+      { title: "ค้นผลสอบ", href: "/pali/results" },
+      { title: "สถิติ", href: "/pali/stats" },
+      { title: "สนามสอบบาลี", href: "/pali/venues" },
+      { title: "ขั้นตอนการสมัครสอบ", href: "/pali/apply" },
+    ],
+  },
+  {
     title: "ติดตามคำขอ",
     href: "/track",
     description: "ติดตามสถานะคำขอจัดตั้ง-ยุบสำนักเรียน และเปิด-ปิด-ย้ายสนามสอบ",
@@ -84,7 +96,12 @@ export const publicMenu: MenuItem[] = [
   {
     title: "คลังข้อสอบ",
     href: "/quiz",
-    description: "แบบทดสอบก่อนเรียน บทเรียน และแบบทดสอบหลังเรียน ธรรมศึกษา",
+    description: "แบบทดสอบก่อนเรียน บทเรียน และแบบทดสอบหลังเรียน แผนกธรรมและแผนกบาลี",
+    children: [
+      { title: "แผนกธรรม", href: "/quiz" },
+      { title: "แผนกบาลี", href: "/quiz/pali" },
+      { title: "ข้อสอบเก่าพร้อมเฉลย", href: "/quiz/past-papers" },
+    ],
   },
   {
     title: "ดาวน์โหลด",
